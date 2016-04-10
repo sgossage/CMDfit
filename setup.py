@@ -11,4 +11,7 @@ setup(name='cmdfit',
       install_requires=[
           'numpy'
       ],
-      zip_safe=False)
+      zip_safe=False,
+      test_suite='nose.collector',
+      tests_require=['nose'],
+)
