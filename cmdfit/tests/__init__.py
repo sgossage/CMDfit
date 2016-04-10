@@ -1,0 +1,1 @@
+#import cmdfit.tests
