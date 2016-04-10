@@ -1,8 +1,0 @@
-from unittest import TestCase
-
-import cmdfit
-
-class TestFit(TestCase):
-    def test_is_string(self):
-        s = cmdfit.fit()
-        self.assertTrue(isinstance(s, basestring))
