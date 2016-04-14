@@ -1,11 +1,11 @@
 from unittest import TestCase
 
-import cmdfit
+import cmdfit.tests.a_test as a_test
 
-# Right now a test to test that I can test...cmdfit will change and
-# the test will be more meaningful in the future (i.e. it will not return
-# just x + 2).
-class TestFit(TestCase):
-    def test_is_string(self):
-        a = cmdfit.fit(1)
-        self.assertEqual(a, 3)
+# Right now a test to test that I can test. I may change this, but right now it
+# just checks the result of 1 + 2.
+class TestSum(TestCase):
+    def test_calculation(self):
+        x=1
+        res = a_test.sumtest(x)
+        self.assertEqual(res, 3)
