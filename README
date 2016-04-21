@@ -1,4 +1,63 @@
 ==============================================================
+THINGS THAT DO NOT WORK:
+==============================================================
+Anything with the likelihood at the moment. I am working out
+an interpolation scheme that will be necessary for my fitting procedure.
+Without this implemented, the likelihood currently does not know
+which model point to compare to.
+
+This documentation needs to be updated...
+
+Commenting is not great at the moment either, I plan to improve that.
+
+==============================================================
+WHAT DOES WORK:
+==============================================================
+Loading data and models. Tests work as well.
+
+Using this set of commands:
+
+import data
+
+somename = data.cmdset('data')
+
+A person can load a data file which will hold magnitudes and
+errors selected by the user. This is all that is needed for
+fitting to commence as far as data goes.
+
+somename.magnitudes
+
+will give the magnitudes data frame (Pandas).
+
+somename.uncertainties
+
+will give the uncertainties. Similarly, entering
+
+someothername = data.cmdset('model')
+
+creates an object that holds the model points.
+
+someothername.magnitudes
+
+gives the predicted magnitudes in user selected bands.
+
+someothername.ages
+
+gives a frame containing just the ages of the models.
+
+someothername.initmasses
+
+gives a frame with the initial masses of each model.
+
+someothername.fullframe
+
+gives the full data frame with all collected values.
+
+Mostly what is missing here is an interpolation scheme to pick out values
+during MCMC; this is because the sampler will be drawing its values from
+this loaded data, which is discrete.
+
+==============================================================
 OVERVIEW:
 ==============================================================
 
