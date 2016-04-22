@@ -1,6 +1,7 @@
 import numpy as np
 import re
 from . import userinteract as user
+from . import magcorrections as magcorr
 
 # ==========================================================================================================================
 
@@ -77,7 +78,7 @@ def header_select_col(data_file, operation = None, axis= None, mode = 'data', re
 # ==========================================================================================================================
 
 def get_values(data_file, column_index, mode='data', model_extras=False):
-    print(column_index)
+    print('\nLoading data from {:s}...\n'.format(data_file.split('/')[-1]))
     # Open the data file and read in all lines, then close the file buffer:
     f = open(data_file)
     lines = f.readlines()
@@ -131,7 +132,7 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
     
 # ==========================================================================================================================
 
-def assign_data(cmd_datafile, operation = None, axis = None, mode = 'data', returncols = False, returnNames = False, model_extras=False):
+def assign_data(cmd_datafile, operation = None, axis = None, mode = 'data', returncols = False, returnNames = False, model_extras=False, corrections=None):
     
     if axis != None:
         print('\nDATA FOR {:s}-AXIS:\n'.format(axis))
@@ -161,10 +162,14 @@ def assign_data(cmd_datafile, operation = None, axis = None, mode = 'data', retu
         if operation == '1m2':
             col2 += 6
 
-    # Get the data values from the given file; need to get data values for a second column if performing col1-col2:
+    # If returning extra values and not just magnitude:
     if model_extras:
         data1, agecol, masscol = get_values(cmd_datafile, col1, mode, model_extras)
         data_assignment = data1
+
+        if corrections == 'ABtoVega':
+            data_assignment = magcorr.ABtoVega(data_assignment, band_column=col1)
+
         ages = agecol
         masses = masscol
         if returncols:
@@ -177,6 +182,8 @@ def assign_data(cmd_datafile, operation = None, axis = None, mode = 'data', retu
                 return data_assignment, col1_name, ages, masses
             else:
                 return data_assignment, ages, masses
+
+    # Or else if just returning magnitude(s):
     else:
         data1 = get_values(cmd_datafile, col1, mode)
         if operation == '1m2':
@@ -213,6 +220,5 @@ def assign_data(cmd_datafile, operation = None, axis = None, mode = 'data', retu
                 else:
                     return data_assignment
 
-#def select_columns(cmd_file, mode = 'data'):
 
     
