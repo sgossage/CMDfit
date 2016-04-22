@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from processing import columnread as cread
 from processing import userinteract as user
+from processing import interp
 
 class cmdset(object):
     
@@ -50,9 +51,9 @@ class cmdset(object):
             while keepgoing:
                 
                 if extras_flag:
-                    dataCol, dataName, ages, masses = cread.assign_data(data_file, mode=readmode, returnNames=True, model_extras=extras_flag)
+                    dataCol, dataName, ages, masses = cread.assign_data(data_file, mode=readmode, returnNames=True, model_extras=extras_flag, corrections='ABtoVega')
                 else:
-                    dataCol, dataName = cread.assign_data(data_file, mode=readmode, returnNames=True)
+                    dataCol, dataName = cread.assign_data(data_file, mode=readmode, returnNames=True,corrections='ABtoVega')
                 
                 # Ask about supplying uncertainty values from the data table:
                 if readmode == 'data':
@@ -152,19 +153,7 @@ class cmdset(object):
         # If the age does not exist:
         if not isochrone_indexlist:
             # Determine the closest ages:
-            closestAge = min(age_array, key = lambda x: abs(x - age))
-        
-            if closestAge < age:
-                # The index of the last element in the closest age isochrone.
-                closestAge_index = np.where(age_array == closestAge)[0][-1]
-                # Taking this index and adding one to enter the next closest isochrone and grab its age:
-                older_closestAge = age_array[closestAge_index + 1]
-                younger_closestAge = closestAge
-         
-            else:
-                closestAge_index = np.where(age_array == closestAge)))[0][0]
-                younger_Age = age_array[closestAge_index - 1]
-                older_Age = closestAge
+            younger_Age, older_Age = interp.find_closestAges(age, age_array)            
 
             older_Iso_indexlist = np.where(age_array == older_Age)
             younger_Iso_indexlist = np.where(age_array == younger_Age)
@@ -186,29 +175,17 @@ class cmdset(object):
            
                 # If the mass does not exist, need to find adjacent masses and prepare for interpolation.
                 if not older_mass_index:
-                   older_closestMass = min(older_mass_array, key = lambda x: abs(x - initmass))
+                    # Find the closest masses in this isochrone:
+                    older_bigMass, older_lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, older_mass_array)
+                    
+                    # Get corresponding magnitudes:
+                    older_bigmag_val = older_mag_array[bigMass_index]
+                    older_lilmag_val = older_mag_array[lilMass_index]
 
-                    # Found the closest mass that is less massive than the given mass.
-                    # Need to get the more massive
-                    if older_closest_mass < initmass:
-                        closestMass_index = np.where(older_mass_array == older_closest_mass)[0]
-                        older_bigMass = older_mass_array[closestMass_index + 1]
-                        older_lilMass = older_closestMass
-
-                        # Grab corresp. magnitudes
-                        older_bigmag_val = older_mag_array[closestMass_index + 1]
-                        older_lilmag_val = older_mag_array[closestMass_index]
-                    else:
-                        closestMass_index = np.where(older_mass_array == older_closest_mass)[0]
-                        older_lilMass = older_mass_array[closestMass_index - 1]
-                        older_bigMass = older_closestMass
-
-                        # Grab corresp. magnitudes
-                        older_bigmag_val = older_mag_array[closestMass_index - 1]
-                        older_lilmag_val = older_mag_array[closestMass_index]
-                 else:
-                     older_mass_val = older_mass_array[older_mass_index]
-                     older_mag_val = older_mag_array[older_mass_index]
+                # Or else the mass was found:
+                else:
+                    older_mass_val = older_mass_array[older_mass_index]
+                    older_mag_val = older_mag_array[older_mass_index]
             
             # See if we can grab masses from the younger isochrone too:
             if initmass < np.amax(np.array(younger_mass_array)) and initmass > np.amin(np.array(younger_mass_array)):
@@ -216,38 +193,67 @@ class cmdset(object):
                 younger_mass_index = np.where(younger_mass_array == initmass)[0]     
                 
                 if not younger_mass_index:
-                    younger_closestMass = min(younger_mass_array, key = lambda x: abs(x - initmass))
 
-                    # Found the closest mass that is less massive than the given mass.
-                    # Need to get the more massive
-                    if younger_closest_mass < initmass:
-                        closestMass_index = np.where(younger_mass_array == younger_closest_mass)[0]
-                        younger_bigMass = younger_mass_array[closestMass_index + 1]
-                        younger_lilMass = younger_closestMass
-                        
-                        # Grab corresp. magnitudes
-                        younger_bigmag_val = younger_mag_array[closestMass_index + 1]
-                        younger_lilmag_val = younger_mag_array[closestMass_index]
-                    else:
-                        closestMass_index = np.where(younger_mass_array == younger_closest_mass)[0]
-                        younger_lilMass = younger_mass_array[closestMass_index - 1]
-                        younger_bigMass = younger_closestMass
+                    younger_bigMass, younger_lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, younger_mass_array)
 
-                        # Grab corresp. magnitudes
-                        younger_lilmag_val = younger_mag_array[closestMass_index - 1]
-                        younger_bigmag_val = younger_mag_array[closestMass_index]
+                    younger_lilmag_val = younger_mag_array[lilMass_index]
+                    younger_bigmag_val = younger_mag_array[bigMass_index]
+
                 else:
                     younger_mass_val = younger_mass_array[younger_mass_index]
                     younger_mag_val = younger_mag_array[younger_mass_index]
 
-            # Now we have the bounding masses for the given mass value (or else the masses themselves) from each isochrone.
-            # We also have either the bounding magnitudes or the magnitudes themselves.
-            # In the case that we have bounding values, need to interpolate.
+            # Need a plan to deal with if the mass is NOT within these ranges...
+            
+            # Right now, Ill just linearly interpolate...
+            # Given then masses found and the magnitudes found, and the given initial mass, linearly interpolate the magnitude for the younger and older isochrones:
+            # This  is if the given mass was not found:
+            older_interp = False
+            younger_interp = False
+            if not younger_mass_index:
+                younger_interpmag = interp.linear_interp(initmass, (younger_lilMass, younger_lilmag_val), (younger_bigMass, younger_bigmag_val))
+                younger_interp = True
+            if not older_mass_index:
+                older_interpmag = interp.linear_interp(initmass, (older_lilMass, older_lilmag_val), (older_bigMass, older_bigmag_val))
+                older_interp = True
+            if older_interp and younger_interp:
+                # Now use the newly interpolated magnitudes for each isochrone and interpolate between isochrones to get the interpolated magnitude at the desired age:
+                interpmag = interp.linear_interp(age, (younger_Age, younger_interpmag), (older_Age, older_interpmag))
 
-            # So, first may need to interpolate between masses and an interpolated magnitude for each isochrone.
-            # Then will need to interpolate the magnitude between isohcrones (ages).
-            # OK...
+            else:
+                interpmag = interp.linear_interp(age, (younger_Age, younger_mag_val), (older_Age, older_mag_val))
             
+            return interpmag[0]
+
+        # Now we have an interpolated magnitude in the event that the given age is not found. If the age was found, just return the corresponding magnitude.
+        else:
+            # Use isochrone_indexlist...
+            # Get the relevant masses:
+            mass_array = mass_array[isochrone_indexlist]
             
+            # Check if the mass we need exists, and if the mass is within bounds:
+            if initmass < np.amax(np.array(mass_array)) and initmass > np.amin(np.array(mass_array)):
+
+                mass_index = np.where(mass_array == initmass)[0]
+           
+                # If the mass does not exist, need to find adjacent masses and prepare for interpolation.
+                if not mass_index:
+                    bigMass, lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, mass_array)
+                    
+                    bigmag_val = mag_array[bigMass_index]
+                    lilmag_val = mag_array[lilMass_index]
+                    
+                    # Interpolate between masses within this isochrone:
+                    interp_mag = interp.linear_interp(initmass, (older_lilMass, older_lilmag_val), (older_bigMass, olderbigmag_val))
+
+                    return interp_mag[0]
+
+                # Or else the mass was found,
+                else:
+                    mass_val = mass_array[mass_index]
+                    mag_val = mag_array[mass_index]
+
+                    return mag_val[0]
+                 
             
             
