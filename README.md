@@ -11,7 +11,7 @@ Respectively, these find a single star's likely cluster [Fe/H],
 log10 age, primary/seconday initial mass or the parameters of a
 collection of observed stars comprising a stellar population.
 
-**I WOULD NOT RUN cmdfit.all() RIGHT NOW.**
+**I WOULD NOT RUN cmdfit.fitall() RIGHT NOW.**
 
 It takes a long time to complete, but I am working to resolve
 this.
