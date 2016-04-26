@@ -2,58 +2,70 @@
 import numpy as np
 import pandas as pd
 import os
-from processing import columnread as cread
-from processing import userinteract as user
-from processing import interp
+from cmdfit.processing import columnread as cread
+from cmdfit.processing import userinteract as user
+from cmdfit.processing import interp
 
 class cmdset(object):
     
-    def __init__(self, kind = 'data'):
+    def __init__(self, kind = 'data', data_file = None, usecol = None):
 
 
 
-        def loadData(readmode='data'):
+        def loadData(readmode='data', data_file = None, usecol = None):
 
-             # root_dir should be /cmdfit
-            root_dir = os.path.dirname(os.path.abspath(__file__))
-
+            # If not file path was given, have the user select one:
             if readmode == 'data':
-                data_dir = root_dir + '/data'
-                print('SELECT DESIRED DATA PATH:\n(Reading from {:s}.)'.format(data_dir))
-                specific_data_dir = data_dir + user.select_a_dir(data_dir,type_flag = 1)
-                data_file = specific_data_dir + user.select_a_dir(specific_data_dir, 2)
+                if data_file == None:
+
+                    specific_data_dir = select_pathtofile(readmode)
+                    data_file = specific_data_dir + user.select_a_dir(specific_data_dir, 2)
+
                 extras_flag = False
 
             elif readmode == 'model':
-                cmd_model_path = root_dir + '/model'
-                print('SELECT DESIRED MODEL PATH:\n(Reading from {:s}.)'.format(cmd_model_path))
-                specific_model_path = cmd_model_path + user.select_a_dir(cmd_model_path,type_flag = 1)
-                selected_run_path = specific_model_path + user.select_a_dir(specific_model_path,type_flag = 1)
-                data_file = selected_run_path + user.select_a_dir(selected_run_path,type_flag = 2)
+                if data_file == None:
+
+                    selected_run_path = select_pathtofile(readmode)
+                    data_file = selected_run_path + user.select_a_dir(selected_run_path,type_flag = 2)
+                
+                # For model cmdsets, turn model extras on initially. This will allow for information detailing intitial
+                # masses of model stars and their ages as well:
                 extras_flag = True
             
             else:
                 print('Usage:\ncmdset(kind = ...), where \'...\' is either \'data\' if reading from a data file or \'model\' if reading from a model file.')
+                return
 
-            # Ask which column is relevant.
-            # Store the column header name
-            # Store the data in the column.
-            # Do this until told to stop
-            # Put data in a data frame with column names as the keys
-            # Also put something in to let user see the keys on request.
-
+            # Arrays that will hold loaded data, uncertainties (if readmode = 'data'), 
+            # header names, and uncertainty header names (if readmode = 'data'):
             dataMatrix = []
             uncertMatrix = []
             dataNames = []
             uncertNames = []
-            keepgoing = True
 
+            # Initialize to true to execute while loop just below:
+            keepgoing = True
+            # Initialize number of bands read in for the cmdset to be 0:
+            self.numbands = 0
+
+            # For model cmdsets, we may want to load a bunch of files, so this array will
+            # keep track of the columns used so that the user does not have to re-enter them.
+            if readmode == 'model':
+                if usecol == None:
+                    self.usedcolumns = []
+                else:
+                    self.usedcolumns = np.array(usecol)
+                    usecol_index = 0
+                    usecol = self.usedcolumns[usecol_index]
+           
+            # This while loop runs a number of times to allow the user to select which columns to read in from the data file:
             while keepgoing:
                 
                 if extras_flag:
-                    dataCol, dataName, ages, masses = cread.assign_data(data_file, mode=readmode, returnNames=True, model_extras=extras_flag, corrections='ABtoVega')
+                    dataCol, usedcol, dataName, ages, masses, metadata = cread.assign_data(data_file, mode=readmode, given_column=usecol, returncols=True, returnNames=True, model_extras=extras_flag, corrections='ABtoVega')
                 else:
-                    dataCol, dataName = cread.assign_data(data_file, mode=readmode, returnNames=True,corrections='ABtoVega')
+                    dataCol, usedcol, dataName = cread.assign_data(data_file, mode=readmode, given_column=usecol, returncols=True, returnNames=True, corrections='ABtoVega')
                 
                 # Ask about supplying uncertainty values from the data table:
                 if readmode == 'data':
@@ -67,34 +79,57 @@ class cmdset(object):
                         # This nominal value is based on my reading of Jorgensen & Lindegren 2005.
                         uncertCol = [0.1] * len(dataCol)
                         uncertName = dataName + 'err'
-
+                    
+                    # Store uncertainties in their own matrix:
                     uncertMatrix.append(uncertCol)
                     uncertNames.append(uncertName)
                 
+                # Store log10 age and initial mass in the data matrix if extras are desired:
                 if extras_flag:
                     dataMatrix.append(ages)
                     dataNames.append('log10 age')
                     dataMatrix.append(masses)
                     dataNames.append('Initial Mass')
+                    self.FeH = eval(metadata[0])
                 
+                # Store magnitudes in the data matrix:
                 dataMatrix.append(dataCol)
                 dataNames.append(dataName)
+               
+                # Update the number of bands included so far in the cmdset:
+                self.numbands += 1
+                
+                # If columns have not been given:
+                if usecol == None:
+                   
+                    # Track the columns used so far:
+                    if readmode == 'model':
+                        self.usedcolumns.append(usedcol)                     
 
-                response = user.ask_for_specific_input('\n================================\nWould you like to enter another filter as data? ', 'y', 'n')
-                if response == 'y':
-                    extras_flag = False
-                    continue
+                    # Ask about reading in another column of magnitudes:
+                    response = user.ask_for_specific_input('\n================================\nWould you like to enter another filter as data? ', 'y', 'n')
+                    if response == 'y':
+                        extras_flag = False
+                        continue
+                    else:
+                        keepgoing = False
+                # If columns have been given, keep going until all columns have been used:
                 else:
-                    keepgoing = False
+                    usecol_index +=1
+                    if usecol_index >= len(self.usedcolumns):
+                        break
+                       
+                    usecol = self.usedcolumns[usecol_index]
+                    extras_flag = False
 
             # Now we have a matrix containing all selected magnitudes; each magnitude set is stored columnwise in dataMatrix and the respective column names are stored columnwise in dataNames.
             # Place the data into a Pandas data frame for easy reference:
-
             dataMatrix = np.array(dataMatrix)
             dataNames = np.array(dataNames)
 
             loadedData = pd.DataFrame(dataMatrix.T, columns = dataNames)
-
+            
+            # For data cmdsets, create a Pandas data frame for the loaded uncertainties as well:
             if readmode == 'data':
                 uncertMatrix = np.array(uncertMatrix)
                 uncerNames = np.array(uncertNames)
@@ -106,10 +141,10 @@ class cmdset(object):
 
         # === Attributes ===: 
         if kind == 'data':
-            self.magnitudes, self.uncertainties = loadData(readmode = 'data')
+            self.magnitudes, self.uncertainties = loadData(readmode = 'data', data_file=data_file, usecol=usecol)
         
         elif kind == 'model':
-            self.fullframe = loadData(readmode = 'model')
+            self.fullframe = loadData(readmode = 'model', data_file=data_file, usecol=usecol)
             self.ages = self.fullframe.ix[:, 'log10 age']
             self.initmasses = self.fullframe.ix[:, 'Initial Mass']
             self.magnitudes = self.fullframe.ix[:, 2:]
@@ -118,30 +153,28 @@ class cmdset(object):
         self.kind = kind
      
     # Utility functions:
-    def makeBands(self):
+    def makeBand(self, bandindex):
           
         # This function will only operate if the cmdset object has a kind equal to 'data'.
         if self.kind == 'model':
-            print('\nERROR: This cmdset is a model and makeBands() will only operate on data sets.\n')
+            print('\nERROR: This is a model cmdset and makeBands() will only operate on data sets.\n')
             return
         
-        # Iterates through columns of the magnitude data frame:
-        bandmags = [] 
-        for band in self.magnitudes:
-            bandmags.append(self.magnitudes[band].values)
-       
-        # Same, but for uncertainties:
-        banduncert = []
-        for banderr in self.uncertainties:
-            banduncert.append(self.uncertainties[banderr].values)
-        
-        # Conglomerate into a larger list with column 1 holding the list of magnitude arrays and column 2 holding the list of uncertainty arrays:
-        banddata = [bandmags, banduncert]
+        banddata = [self.magnitudes.ix[:, bandindex].values, self.uncertainties.ix[:, bandindex].values]
 
         return banddata
        
     def getmag(self, age, initmass, band):
         
+        # This function will only operate if the cmdset object has a kind equal to 'model'.
+        if self.kind == 'data':
+            print('\nERROR: This is a data cmdset and makeBands() will only operate on model sets.\n')
+            return
+
+        # So I need to check if interpolation between metallicities needs to take place first, since these are separate files....
+        # This means that I need to take in all cmdsets, find the one with the given metallicity, and then figure out if interpolation
+        # between cmdsets needs to be done.
+
         # Search for the given age, then the given mass, then get the magnitude and return it. Not always so easy; if necessary, interpolate.
         # So check if the given age exists already and get the indices of these entries if it does:
         age_array = self.ages.values
@@ -150,11 +183,12 @@ class cmdset(object):
         
         isochrone_indexlist = np.where(age_array == age)[0]
        
-        # If the age does not exist:
+        # If the age does not exist, but it is within range of valid values:
         if not isochrone_indexlist:
-            # Determine the closest ages:
+            # Determine the closest ages via interpolation:
             younger_Age, older_Age = interp.find_closestAges(age, age_array)            
-
+            
+            # Get indices of all stars corresponding to the found ages (this is an isochrone block):
             older_Iso_indexlist = np.where(age_array == older_Age)
             younger_Iso_indexlist = np.where(age_array == younger_Age)
 
@@ -187,6 +221,12 @@ class cmdset(object):
                     older_mass_val = older_mass_array[older_mass_index]
                     older_mag_val = older_mag_array[older_mass_index]
             
+            # If the isochrone doesn't have the mass available, return infinity. This lets the code know that 
+            else:
+                # Making older_mass_index not empty will signal that no older mass was found.
+                older_mass_index = [0]
+                older_mag_val = np.inf
+            
             # See if we can grab masses from the younger isochrone too:
             if initmass < np.amax(np.array(younger_mass_array)) and initmass > np.amin(np.array(younger_mass_array)):
                 
@@ -202,30 +242,55 @@ class cmdset(object):
                 else:
                     younger_mass_val = younger_mass_array[younger_mass_index]
                     younger_mag_val = younger_mag_array[younger_mass_index]
+            else:
+                younger_mass_index = [0]
+                younger_mag_val = np.inf
 
-            # Need a plan to deal with if the mass is NOT within these ranges...
+            # Need a plan to deal with if the mass is NOT within these ranges...maybe return a weird number to let rest of code know to kill this value.
             
             # Right now, Ill just linearly interpolate...
             # Given then masses found and the magnitudes found, and the given initial mass, linearly interpolate the magnitude for the younger and older isochrones:
             # This  is if the given mass was not found:
             older_interp = False
             younger_interp = False
+ 
+            # If we need to interpolate masses in the younger isochrone:
             if not younger_mass_index:
                 younger_interpmag = interp.linear_interp(initmass, (younger_lilMass, younger_lilmag_val), (younger_bigMass, younger_bigmag_val))
                 younger_interp = True
+                # Set younger_mag_value to this interpolated value. This may then be used in case the mass was
+                # already existent in the older isochrone:
+                younger_mag_val = younger_interpmag
+ 
+            # If we need to interpolate masses in the older isochrone:
             if not older_mass_index:
                 older_interpmag = interp.linear_interp(initmass, (older_lilMass, older_lilmag_val), (older_bigMass, older_bigmag_val))
                 older_interp = True
+                older_mag_val = older_interpmag
+
+            # If we were able to interpolate masses in both isochrones, interpolate between isochrone ages:
             if older_interp and younger_interp:
                 # Now use the newly interpolated magnitudes for each isochrone and interpolate between isochrones to get the interpolated magnitude at the desired age:
                 interpmag = interp.linear_interp(age, (younger_Age, younger_interpmag), (older_Age, older_interpmag))
 
-            else:
-                interpmag = interp.linear_interp(age, (younger_Age, younger_mag_val), (older_Age, older_mag_val))
-            
-            return interpmag[0]
+            # Or else if either interpolation did not take place in both isochrones...
+            else: 
+                # ...but masses were in range in both isochrones, then it just means the masses already existed, so just interpolate between isochrones:
+                if np.isfinite(younger_mag_val) and np.isfinite(older_mag_val):
+                    interpmag = interp.linear_interp(age, (younger_Age, younger_mag_val), (older_Age, older_mag_val))
 
-        # Now we have an interpolated magnitude in the event that the given age is not found. If the age was found, just return the corresponding magnitude.
+                # If either mass was out of range for an isochrone, then return a weird value to let the code know:
+                else:
+                    interpmag = [np.inf]   
+         
+            if isinstance(interpmag, float) or isinstance(interpmag, int):
+                return interpmag
+            else:
+                return interpmag[0]
+
+        # Now we have an interpolated magnitude in the event that the given age is not found. 
+        # If the age was found, just return the corresponding magnitude as long as the given mass is within range
+        # for the relevant isochrone.
         else:
             # Use isochrone_indexlist...
             # Get the relevant masses:
@@ -254,6 +319,68 @@ class cmdset(object):
                     mag_val = mag_array[mass_index]
 
                     return mag_val[0]
+
+            # Or else if the mass was not in range for the isochrone, return infinity to let the code know. These values will have zero probability.
+            else:
+                return [np.inf]
                  
+def all_modelcmdsets():
+
+    # Go to a desired directory and get all of the .cmd files there:
+
+    # root_dir should be /cmdfit
+    #root_dir = os.path.dirname(os.path.abspath(__file__))
+    #cmd_model_path = root_dir + '/model'
+    #print('SELECT DESIRED MODEL PATH:\n(Reading from {:s}.)'.format(cmd_model_path))
+    #specific_model_path = cmd_model_path + user.select_a_dir(cmd_model_path,type_flag = 1)
+    selected_run_path = select_pathtofile('model')#specific_model_path + user.select_a_dir(specific_model_path,type_flag = 1)
+
+    # Load all files in the selected directory:
+    data_files = cread.getall_files(selected_run_path)
+    print("In " + selected_run_path + "...")
+    for filename in data_files:
+        print("Found " + filename.split('/')[-1] + "...")
+
+    model_cmdsets = []
+    usedcolumns = None
+    print()
+
+    for i in range( len(data_files) ):
+        
+        print('======================================================================')
+        print('Creating model cmdset for ' + data_files[i].split('/')[-1] + '...')
+
+        model_cmdsets.append(cmdset('model', data_files[i], usedcolumns))
+
+        # On subsequent loops, use the user selected columns of the first model cmdset:
+        usedcolumns = model_cmdsets[0].usedcolumns
+
+    return model_cmdsets
+
+def select_pathtofile(mode):
             
+    # returns string in the form of '/path/to/file'
+
+    # root_dir path should lead to /cmdfit.
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # For running tests, this function just returns the root directory.
+    if mode == 'test':
+        return root_dir
+
+    elif mode == 'model':
+        cmd_model_path = root_dir + '/model'
+        print('SELECT DESIRED MODEL PATH:\n(Reading from {:s}.)'.format(cmd_model_path))
+        model_version_path = cmd_model_path + user.select_a_dir(cmd_model_path,type_flag = 1)
+        selected_run_path = model_version_path + user.select_a_dir(model_version_path,type_flag = 1)
+        return selected_run_path
+
+    elif mode == 'data':
+        data_dir = root_dir + '/data'
+        print('SELECT DESIRED DATA PATH:\n(Reading from {:s}.)'.format(data_dir))
+        specific_data_dir = data_dir + user.select_a_dir(data_dir,type_flag = 1)
+        return specific_data_dir
+
+    else:                                             
+        return "ERROR: Improper mode input for select_pathtofile(mode). Input should be either: mode = \'data\' or mode = \'model\'."
             

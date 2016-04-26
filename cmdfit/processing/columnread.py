@@ -1,5 +1,6 @@
 import numpy as np
 import re
+import os
 from . import userinteract as user
 from . import magcorrections as magcorr
 
@@ -19,11 +20,20 @@ def get_header(data_file, mode = 'data'):
     f.close()
 
     comments = []
+    metadata_numlines = 1
+    metadata_linesread = 0
+
     for string in lines:
         if '#' in string:
             comments.append(string)
         # Break if we've gone past top most comments:
         if '#' not in string:
+            # In MIST model files, metadata will exist on an uncommented line before the header, 
+            # so don't exit just because we've reached that line:
+            if mode == 'model' and metadata_linesread < metadata_numlines:
+                metadata_linesread += 1
+                continue
+                
             break
 
     # Assumes that the header is contained in the last set of comments:
@@ -39,7 +49,11 @@ def get_header(data_file, mode = 'data'):
 
 # ==========================================================================================================================
 
-def header_select_col(data_file, operation = None, axis= None, mode = 'data', returnNames = False):
+def header_select_col(data_file, mode = 'data', returnNames = False):
+
+    """
+      Asks user to select a column from which data will be read.
+    """
 
     # Report the headers:
     hlist = get_header(data_file, mode)
@@ -48,36 +62,23 @@ def header_select_col(data_file, operation = None, axis= None, mode = 'data', re
     print('========================================================')
     for i, name in enumerate(hlist):
         print('{:d}) {:s}'.format(i, name))
-        
     print('========================================================')
     
-    if axis != None:
-        col1 = user.ask_for_specific_input('COL1 ({:s} axis): '.format(axis), type_to_check = int)
-    # If just loading data...
-    else:
-        col1 = user.ask_for_specific_input('ENTER COLUMN INDEX OF DESIRED FILTER: ', type_to_check = int)
-
-    # If having a color is requested for this axis, will need to select a second magnitude.
-    if operation == '1m2':
-
-        col2 = user.ask_for_specific_input('COL2 ({:s} axis): '.format(axis), type_to_check = int)
-    
-        # Case where the header names for the selected columns are returned as well:
-        if returnNames:
-            return col1, col2, hlist[col1], hlist[col2]
-        else:
-            return col1, col2
-
-    else:
+    col1 = user.ask_for_specific_input('ENTER COLUMN INDEX OF DESIRED FILTER: ', type_to_check = int)
         
-        if returnNames:
-            return col1, hlist[col1]
-        else:
-            return col1
+    if returnNames:
+        return col1, hlist[col1]
+    else:
+        return col1
 
 # ==========================================================================================================================
 
 def get_values(data_file, column_index, mode='data', model_extras=False):
+
+    """
+      Handles the loading of data; loads a single column.
+    """
+
     print('\nLoading data from {:s}...\n'.format(data_file.split('/')[-1]))
     # Open the data file and read in all lines, then close the file buffer:
     f = open(data_file)
@@ -89,6 +90,12 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
     for string in lines:
         if '#' not in string:
             data_lines.append(string)
+
+    # If the mode is set to a model file, pick out the first uncommented line...in MIST .cmd files this line holds
+    # metadata; this block grabs the meta data and separates it from the other data lines.
+    if mode == 'model':
+        meta_data = (data_lines[0].split('\n')[0]).split(' ')
+        data_lines = data_lines[1:]
     
     # Look through lines and pick values from the desired column:
     data_column = []
@@ -107,8 +114,10 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
             l = re.compile('[+-]?\d+\.\d+[eE][-+]?\d+|[+-]?\d+\.\d+|[+-]?\d+').findall(line)
         
         # For model files, we need to skip the lines between isochrones which exist in blocks separated by several empty lines.
+        # Also, incomplete lines should be skipped -- I have a quick fix to handle this, but it should be ammended later.
+        # Right now the code just checks if the length is less than the selected clumn index to mark incomplete lines.
         if mode == 'model':
-            if not l:
+            if not l or len(l) < column_index:
                 continue
 
         # Now we can work with the line. Try to convert it to a float and append it to the list of data values:
@@ -125,100 +134,115 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
         return np.array(data_column)
 
     elif mode == 'model':
+        # If returning ages, masses, and meta data (i.e., extras) w/ the magnitudes:
         if model_extras:
-            return np.array(data_column), np.array(age_column), np.array(mass_column)
+            return np.array(data_column), np.array(age_column), np.array(mass_column), np.array(meta_data)
+        # Or else if just returning the magnitudes:
         else:
             return np.array(data_column)
     
 # ==========================================================================================================================
 
-def assign_data(cmd_datafile, operation = None, axis = None, mode = 'data', returncols = False, returnNames = False, model_extras=False, corrections=None):
+def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = False, returnNames = False, model_extras=False, corrections=None):
     
-    if axis != None:
-        print('\nDATA FOR {:s}-AXIS:\n'.format(axis))
-    else:
-        print('\nASSIGNING DATA...\n')    
+    """
+      returns columns in a useful way (e.g. mass, age, and a magnitude all together), or the columns with their names and indices.
+    """
 
-    # Get two data columns if we need to do col1 - col2 for e.g. a color like B-V, or else just get one column for e.g. a V maginitude:
-    if operation == '1m2':
-        # If we need the header names...
-        if returnNames:
-            col1, col2, col1_name, col2_name = header_select_col(cmd_datafile, operation, axis, mode, returnNames) 
-        # Or if we do not need the names...
-        else:
-            col1, col2 = header_select_col(cmd_datafile, operation, axis, mode)
-    # Same as block above, but not subtracting magnitudes:
-    else:
-        if returnNames:
-            col1, col1_name = header_select_col(cmd_datafile, operation, axis, mode, returnNames)
-        else:
-            col1 = header_select_col(cmd_datafile, operation, axis, mode)
+    if given_column != None:
+        col1 = given_column
+        hlist = get_header(cmd_datafile, mode)
+        # get_header() skips the first 6 columns (b/c they are not magnitudes), so need to offset
+        # the given column index by six.
+        col1_name = hlist[col1 - 6]
+        print('\nASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
 
-    # with mode = 'model' in the header_select_... function, the returned column numbers will be offset by 6, since it skips
-    # the columns which are not bandpass magnitudes. Here, that offset is corrected.
-    if mode == 'model':
+    else:
+        # Get one column index and possibly header name for a desired magnitude:
+        if returnNames:
+            col1, col1_name = header_select_col(cmd_datafile, mode, returnNames)
+        else:
+            col1 = header_select_col(cmd_datafile, mode)
+
+        print('\nASSIGNING DATA...')    
+
+    # with mode = 'model' in the header_select_... function, the returned column 
+    # numbers will be offset by 6, since it skips the columns which are not bandpass
+    # magnitudes. Here, that offset is corrected.
+
+    # A given column will have already had this offset applied, so no need to do it again.
+    if mode == 'model' and given_column == None:
         col1 += 6
-        # column 2 only exists if the operation is col1 - col2.
-        if operation == '1m2':
-            col2 += 6
 
-    # If returning extra values and not just magnitude:
+    # If returning extra values (masses and ages of all stars) and not just magnitudes:
     if model_extras:
-        data1, agecol, masscol = get_values(cmd_datafile, col1, mode, model_extras)
-        data_assignment = data1
+
+        # Extract magnitude, age, and mass columns; get_values(...) knows where to
+        # find age and mass based on the MIST file format.
+        data_assignment, agecol, masscol, metadata = get_values(cmd_datafile, col1, mode, model_extras)
+
+        # Convert magnitudes from AB system to Vega:
+        if corrections == 'ABtoVega':
+            data_assignment = magcorr.ABtoVega(data_assignment, band_column=col1)
+
+        # Arrays holding mass and age:
+        ages = agecol
+        masses = masscol
+
+        # Return age, magnitude, and masses (w/ or w/o magnitude column index or header names):
+        if returncols:
+            if returnNames:
+                return data_assignment, col1, col1_name, ages, masses, metadata
+            else:
+                return data_assignment, col1, ages, masses, metadata
+        else:
+            if returnNames:
+                return data_assignment, col1_name, ages, masses, metadata
+            else:
+                return data_assignment, ages, masses, metadata
+
+    # Or else if just returning magnitudes:
+    else:
+        data_assignment = get_values(cmd_datafile, col1, mode)
 
         if corrections == 'ABtoVega':
             data_assignment = magcorr.ABtoVega(data_assignment, band_column=col1)
 
-        ages = agecol
-        masses = masscol
+        # If requested, return the selected columns and header name along with the 
+        # selected magnitude:
         if returncols:
             if returnNames:
-                return data_assignment, col1, col1_name, ages, masses
+                return data_assignment, col1, col1_name
             else:
-                return data_assignment, col1, ages, masses
+                return data_assignment, col1
+
         else:
             if returnNames:
-                return data_assignment, col1_name, ages, masses
+                return data_assignment, col1_name
             else:
-                return data_assignment, ages, masses
+                return data_assignment
 
-    # Or else if just returning magnitude(s):
-    else:
-        data1 = get_values(cmd_datafile, col1, mode)
-        if operation == '1m2':
-            data2 = get_values(cmd_datafile, col2, mode)
+# ======================================================================================================================================================
 
-        # Perform desired operation:
-        if operation == '1m2':
-            data_assignment = data1 - data2
-        else:
-            data_assignment = data1
+def getall_files(file_dir):
 
-        # If requested, return the selected columns along with the data:
-        if returncols:
-            if operation == '1m2':
-                if returnNames:
-                    return data_assignment, col1, col2, col1_name, col2_name
-                else:
-                    return data_assignment, col1, col2
-            else:
-                if returnNames:
-                    return data_assignment, col1, col1_name
-                else:
-                    return data_assignment, col1
+    """
+      Reads and returns a list containing the paths to all files in the input directory.
+    """
 
-        else:
-            if operation == '1m2':
-                if returnNames:
-                    return data_assignment, col1_name, col2_name
-                else:
-                    return data_assignment
-            else:
-                if returnNames:
-                    return data_assignment, col1_name
-                else:
-                    return data_assignment
+    # Returns an array of all files in a selected directory.
+    
+    # file list is an array of strings; each string is the name of a file in the given directory
+    file_list = next(os.walk(file_dir))[2]
 
+    for i in range(len(file_list)):
+
+        # Add on the directory's path to turn each list element into the full path to the file:
+        file_list[i] = file_dir + "/" + file_list[i]
+
+    # Return file_list as a list of fulls paths to each file:
+    return file_list
+
+# ======================================================================================================================================================
 
     

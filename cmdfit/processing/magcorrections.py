@@ -18,19 +18,9 @@ def ABtoVega(magnitude_array, band_column):
     # (for Hyades, van Leeuwen et al., 2009):
     # if 'Hyades' in data_file:
     distance_modulus = 3.33
-    print('Applying HYADES dist. modulus:{:f}'.format(distance_modulus)) 
-    
-    # If operating on a color (MAYBE DONT NEED...):
-   # if x_operation == '1m2':
-    #    magnitude_array = magnitude_array - (ABtoVega_corrections[x_col1 - 6] - ABtoVega_corrections[x_col2 - 6])
-    # Or else if just operating on a magnitude:
-    #else:
-    magnitude_array = magnitude_array - ABtoVega_corrections[band_column - 6] + distance_modulus 
+    print('Applying HYADES distance modulus: {:f}'.format(distance_modulus))     
 
-    #if y_operation == '1m2':
-    #    model_y = model_y - (ABtoVega_corrections[y_col1 - 6] - ABtoVega_corrections[y_col2 - 6])
-    #else:
-    #    model_y = model_y - ABtoVega_corrections[y_col1 - 6] + dmod
+    magnitude_array = magnitude_array - ABtoVega_corrections[band_column - 6] + distance_modulus 
 
     return magnitude_array
 

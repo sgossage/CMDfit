@@ -1,1 +1,1 @@
-from .cmdfit import fit
+from cmdfit.cmdfit import fitsingle, fitall
