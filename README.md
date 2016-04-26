@@ -11,7 +11,7 @@ Respectively, these find a single star's likely cluster [Fe/H],
 log10 age, primary/seconday initial mass or the parameters of a
 collection of observed stars comprising a stellar population.
 
-I WOULD NOT RUN cmdfit.all() RIGHT NOW.
+**I WOULD NOT RUN cmdfit.all() RIGHT NOW.**
 
 It takes a long time to complete, but I am working to resolve
 this.
@@ -19,6 +19,9 @@ this.
 The other function cmdfit.fitsingle() is working however,
 although I would like to continue testing to make sure that
 it is being sensible.
+
+**Also, not all model files are currently available on the
+github repo.**
 
 ==============================================================
 # TO DO:
@@ -28,6 +31,7 @@ it is being sensible.
  + Ensure that the MCMC sampling is working correctly.
  + Provide more tools for the user to access the data
    they have loaded.
+ + Improve instructions on how to run the code.
  + General improvements to things like data table navigation.
  + Comments, organization, and probably some more things...
 
