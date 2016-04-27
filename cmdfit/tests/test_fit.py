@@ -20,11 +20,11 @@ class TestIO(TestCase):
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         data_dir = root_dir + '/data'
         specific_data_dir = data_dir + '/Hyades'
-        data_file = specific_data_dir + '/vanleeuwen_out.txt'
+        data_file = specific_data_dir + '/goldman_less_Hyades.txt'
         
         test_data = cread.get_header(data_file)
         
-        self.assertEqual(test_data[3], 'DEC')
+        self.assertEqual(test_data[3], 'pmRA')
 
 # Tests that magnitude corrections will be applied correctly (this tests the AB to Vega correction and applies a distance modulus of 3.33 corresponding
 # to roughly what is believed for this cluster):
