@@ -32,11 +32,12 @@ class TestABCorrections(TestCase):
     def test_corr(self):
         root_dir = data.select_pathtofile('test')
         ABtoVegafile = root_dir + '/data/convert_AB_to_Vega.txt'
-        model_file = root_dir + '/model/MIST_v0.30/feh_p0.25_afe_p0.0_vvcrit0.4/0d60to8d00M_0d60to1d00M00005_1d00to3d00M00002_3d00to8d00M00020.iso.cmd'
+        model_file = root_dir + '/model/MIST_v0.31/HBlim005/MIST_v0.31_feh_m0.15_afe_p0.0_vvcrit0.4_03to8M_HBlim005_full.iso.cmd'
         # Read in 2MASS J magnitudes from this model file:
-        modelvalues = np.array(cread.get_values(model_file, 11, mode='model'))
+        index2MASSJ = 12
+        modelvalues = np.array(cread.get_values(model_file, index2MASSJ, mode='model'))
 
-        correctedmags = np.array(magcorr.ABtoVega(modelvalues, 11))
+        correctedmags = np.array(magcorr.ABtoVega(modelvalues, index2MASSJ))
         corr2MASSJ = 0.8940495232
         HYADESdmod = 3.33
 

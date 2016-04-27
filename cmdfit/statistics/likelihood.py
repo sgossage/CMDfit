@@ -107,8 +107,6 @@ def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
         FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(FeH, FeH_list)
 
         # Calculate model magnitudes from each:
-        print(allmodel_cmdsets[FeHrich_index])
-        print(allmodel_cmdsets[FeHrich_index].ages.values)
         FeHrich_mag = allmodel_cmdsets[FeHrich_index].getmag(age, initmass, data_bandindex)
         FeHpoor_mag = allmodel_cmdsets[FeHpoor_index].getmag(age, initmass, data_bandindex)
         

@@ -133,7 +133,6 @@ class cmdset(object):
                     usecol_index +=1
                     if usecol_index >= len(self.usedcolumns):
                         break
-                       
                     usecol = self.usedcolumns[usecol_index]
                     extras_flag = False
 
@@ -376,7 +375,10 @@ def all_modelcmdsets():
         model_cmdsets.append(cmdset('model', data_files[i], usedcolumns))
 
         # On subsequent loops, use the user selected columns of the first model cmdset:
-        usedcolumns = model_cmdsets[0].usedcolumns
+        usedcolumns = model_cmdsets[i].usedcolumns
+        if i > 1 and model_cmdsets[i].usedcolumns != model_cmdsets[i-1].usedcolumns:
+            print('WARNING: The usedcolumns do not match between cmdsets {:d} and {:d}. This will likely lead to erros.'.format(i, i-1))
+        
 
     return model_cmdsets
 

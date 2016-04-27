@@ -20,20 +20,12 @@ def get_header(data_file, mode = 'data'):
     f.close()
 
     comments = []
-    #metadata_numlines = 1
-    #metadata_linesread = 0
 
     for string in lines:
         if '#' in string:
             comments.append(string)
         # Break if we've gone past top most comments:
         if '#' not in string:
-            # In MIST model files, metadata will exist on an uncommented line before the header, 
-            # so don't exit just because we've reached that line:
-            #if mode == 'model' or mode == 'modeltest' and metadata_linesread < metadata_numlines:
-            #    metadata_linesread += 1
-            #    continue
-                
             break
 
     # Assumes that the header is contained in the last set of comments:
@@ -100,7 +92,7 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
     if mode == 'model' or mode == 'modeltest':
         # metadata  exists on the sixth line in MIST model files.
         meta_data = re.compile('[+-]?\d+\.\d+|[+-]?\d+\.\d+\[eE][+-]?\d+').findall(lines[5])
-        data_lines = data_lines[1:]
+        #data_lines = data_lines[1:]
     
     # Look through lines and pick values from the desired column:
     data_column = []
@@ -109,10 +101,12 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
         age_column = []
 
     for line in data_lines:
+        
         if mode == 'data':
             l = re.compile('[+-]?\d+\.\d+|\w+|       ').findall(line)
             # delete the first blank, if it's there:
             if ' ' in l[0]:
+                print('WARNING: first blank found and deleted in data line of {:s}'.format(data_file.split('/')[-1]))
                 l = np.delete(l, 0).tolist()
         # if dealing with the iso .cmd file, the following format is req. for the data entries:
         else:
@@ -123,6 +117,8 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
         # Right now the code just checks if the length is less than the selected clumn index to mark incomplete lines.
         if mode == 'model' or mode == 'modeltest':
             if not l or len(l) < column_index:
+                #if len(l) < column_index and l != []:
+                    #print('WARNING: Incomplete line encountered in {:s}'.format(data_file.split('/')[-1]))
                 continue
 
         # Now we can work with the line. Try to convert it to a float and append it to the list of data values:
@@ -178,8 +174,10 @@ def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = F
     # numbers will be offset by 6, since it skips the columns which are not bandpass
     # magnitudes. Here, that offset is corrected.
 
-    # A given column will have already had this offset applied, so no need to do it again.
-    if mode == 'model' or mode == 'modeltest'and given_column == None:
+    # A given column will have already had this offset applied, so no need to do it again,
+    # i.e. don't do this if a column is given.
+    if mode == 'model' and given_column == None or mode == 'modeltest'and given_column == None:
+        print('Applying index offset...')
         col1 += modelfile_skippedcols
 
     # If returning extra values (masses and ages of all stars) and not just magnitudes:
@@ -191,7 +189,7 @@ def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = F
 
         # Convert magnitudes from AB system to Vega:
         if corrections == 'ABtoVega':
-            data_assignment = magcorr.ABtoVega(data_assignment, band_column=col1)
+            data_assignment = magcorr.ABtoVega(data_assignment, band_column=col1, silent=silent)
 
         # Arrays holding mass and age:
         ages = agecol
@@ -214,7 +212,7 @@ def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = F
         data_assignment = get_values(cmd_datafile, col1, mode)
 
         if corrections == 'ABtoVega':
-            data_assignment = magcorr.ABtoVega(data_assignment, band_column=col1)
+            data_assignment = magcorr.ABtoVega(data_assignment, band_column=col1, silent=silent)
 
         # If requested, return the selected columns and header name along with the 
         # selected magnitude:

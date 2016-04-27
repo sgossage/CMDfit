@@ -2,9 +2,7 @@ import numpy as np
 import os
 from . import userinteract as user
 
-def ABtoVega(magnitude_array, band_column):
-
-    print('\nConverting from AB magnitude system to Vega system...\nApplying distance modulus correction...')
+def ABtoVega(magnitude_array, band_column, silent = False):
 
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     data_dir = root_dir + '/data'
@@ -18,7 +16,9 @@ def ABtoVega(magnitude_array, band_column):
     # (for Hyades, van Leeuwen et al., 2009):
     # if 'Hyades' in data_file:
     distance_modulus = 3.33
-    print('Applying HYADES distance modulus: {:f}'.format(distance_modulus))     
+    if silent != True:
+        print('\nConverting from AB magnitude system to Vega system...\nApplying distance modulus correction...')
+        print('Applying HYADES distance modulus: {:f}'.format(distance_modulus))     
 
     modelfile_skippedcols = 7
 
