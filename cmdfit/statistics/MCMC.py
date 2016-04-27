@@ -74,13 +74,19 @@ def lnposterior(theta, data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_r
     return lp + likelihood.allband_lnLikelihood(theta, data_cmdset, allmodel_cmdsets, FeH_list, mode, magindex)
 
 def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=None):
-
+    
+    #print('FORMING [Fe/H] RANGE...')
     # Determine the boundaries of the metallicity range:  
     FeH_range = ( np.amin(np.array(FeH_list)), np.amax(np.array(FeH_list)) )
+    #print(FeH_range)
 
     # For the age range, all model cmdsets should have the same age range, so just look at the 
     # range in the first cmdset:
+    #print('FORMING AGE RANGE...')
+    #print(allmodel_cmdsets[0].ages)
+    #print(allmodel_cmdsets[0].ages.values)
     age_range = ( np.amin(allmodel_cmdsets[0].ages.values), np.amax(allmodel_cmdsets[0].ages.values))
+    #print(age_range)
     
     if mode == 'all':
         # emcee sampler parameters:
@@ -109,7 +115,13 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
         nsteps = 300
        
         #  [FeH, age, primary initial mass, secondary initial mass]
-        initial_positions = [0.15, 8.6, 1.0, 0.5]
+        if data_cmdset.kind == 'modeltest':
+            initial_positions = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.0]
+            print(initial_positions)
+
+        else:
+            initial_positions = [0.15, 7.0, 1.0, 0.5]
+
         # Set up the walkers in a Gaussian ball around the initial positions:
         initial_positions = [initial_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
 

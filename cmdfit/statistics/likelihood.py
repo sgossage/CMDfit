@@ -7,7 +7,7 @@ import seaborn as sns
 from . import priors
 
 # Calculates the likelihood of a single star, i.e. a single magnitude, given the set of parameters theta.
-def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdsets, FeH_list, data_mag_range, FeH, age, calc_log = False):
+def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdsets, FeH_list, data_mag_range, FeH, age, Pfield = 0.25, calc_log = False):
 
     """
       The form used here is based on the likelihood function used by van Dyk et al. 2009. This function generates a model 
@@ -107,6 +107,8 @@ def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
         FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(FeH, FeH_list)
 
         # Calculate model magnitudes from each:
+        print(allmodel_cmdsets[FeHrich_index])
+        print(allmodel_cmdsets[FeHrich_index].ages.values)
         FeHrich_mag = allmodel_cmdsets[FeHrich_index].getmag(age, initmass, data_bandindex)
         FeHpoor_mag = allmodel_cmdsets[FeHpoor_index].getmag(age, initmass, data_bandindex)
         
@@ -127,7 +129,7 @@ def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
             return -np.inf
     
     # MAKE THIS INPUT SETH <><@!? (prob. of being a field star for mixture model)
-    Pfield = 0.25
+    #Pfield = 0.25
 
     # Terms going into construction of the Gaussian term of the likelihood function (described in model.ipynb):
     sigma = phot_uncert

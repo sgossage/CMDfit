@@ -20,7 +20,9 @@ def ABtoVega(magnitude_array, band_column):
     distance_modulus = 3.33
     print('Applying HYADES distance modulus: {:f}'.format(distance_modulus))     
 
-    magnitude_array = magnitude_array - ABtoVega_corrections[band_column - 6] + distance_modulus 
+    modelfile_skippedcols = 7
+
+    magnitude_array = magnitude_array - ABtoVega_corrections[band_column - modelfile_skippedcols] + distance_modulus 
 
     return magnitude_array
 

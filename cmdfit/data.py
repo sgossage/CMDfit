@@ -10,8 +10,6 @@ class cmdset(object):
     
     def __init__(self, kind = 'data', data_file = None, usecol = None):
 
-
-
         def loadData(readmode='data', data_file = None, usecol = None):
 
             # If not file path was given, have the user select one:
@@ -23,7 +21,7 @@ class cmdset(object):
 
                 extras_flag = False
 
-            elif readmode == 'model':
+            elif readmode == 'model' or readmode == 'modeltest':
                 if data_file == None:
 
                     selected_run_path = select_pathtofile(readmode)
@@ -59,21 +57,35 @@ class cmdset(object):
                     usecol_index = 0
                     usecol = self.usedcolumns[usecol_index]
            
+            # Flag to suppress reporting of header names:
+            silent_flag = False
+
             # This while loop runs a number of times to allow the user to select which columns to read in from the data file:
             while keepgoing:
                 
                 if extras_flag:
-                    dataCol, usedcol, dataName, ages, masses, metadata = cread.assign_data(data_file, mode=readmode, given_column=usecol, returncols=True, returnNames=True, model_extras=extras_flag, corrections='ABtoVega')
+                    dataCol, usedcol, dataName, ages, masses, metadata = cread.assign_data(data_file, mode=readmode, 
+                                                                                             given_column=usecol, returncols=True, 
+                                                                                               returnNames=True, model_extras=extras_flag, 
+                                                                                                 corrections='ABtoVega', silent=silent_flag)
                 else:
-                    dataCol, usedcol, dataName = cread.assign_data(data_file, mode=readmode, given_column=usecol, returncols=True, returnNames=True, corrections='ABtoVega')
+                    dataCol, usedcol, dataName = cread.assign_data(data_file, mode=readmode, given_column=usecol, returncols=True, returnNames=True, corrections='ABtoVega', silent=silent_flag)
                 
                 # Ask about supplying uncertainty values from the data table:
-                if readmode == 'data':
-                    print('\nSELECT UNCERTAINTIES CORRESPONDING TO COLUMN {:s}.'.format(dataName))
-                    # Ask if uncertainties should be loaded from the data file, or generated in some other way.
-                    response = user.ask_for_specific_input('LOAD FROM {:s}? (If \'n\', a nominal +/-0.1 dex will be used.)'.format(data_file.split('/')[-1]), 'y', 'n')
+                if readmode == 'data' or 'modeltest':
+
+                    # For data files, ask about loading in uncertainties from the data table:
+                    response = 'n'
+                    if readmode == 'data':
+
+                        print('\nSELECT UNCERTAINTIES FOR {:s}.'.format(dataName))
+                        # Ask if uncertainties should be loaded from the data file, or generated in some other way.
+                        response = user.ask_for_specific_input('LOAD FROM {:s}? (If \'n\', a nominal +/-0.1 dex will be used.)'.format(data_file.split('/')[-1]), 'y', 'n')
+                    
                     if response == 'y':
-                        uncertCol, uncertName = cread.assign_data(data_file, mode=readmode, returnNames=True)
+                            uncertCol, uncertName = cread.assign_data(data_file, mode=readmode, returnNames=True)
+
+                    # If the answer is no for loading uncertainties, just suppy some nominal values. modeltest cmdsets will always have this value as their uncertainty.
                     else:
                         # In the future maybe give some options for users to select how they want to generate uncertainties if the data doesn't supply them.
                         # This nominal value is based on my reading of Jorgensen & Lindegren 2005.
@@ -90,9 +102,10 @@ class cmdset(object):
                     dataNames.append('log10 age')
                     dataMatrix.append(masses)
                     dataNames.append('Initial Mass')
-                    self.FeH = eval(metadata[0])
+                    # In MIST model files, FeH is the 3rd entry in the metadata line.
+                    self.FeH = eval(metadata[2])
                 
-                # Store magnitudes in the data matrix:
+                # Store magnitudes in the data matrix, for models these columns will follow age and mass columns:
                 dataMatrix.append(dataCol)
                 dataNames.append(dataName)
                
@@ -110,10 +123,12 @@ class cmdset(object):
                     response = user.ask_for_specific_input('\n================================\nWould you like to enter another filter as data? ', 'y', 'n')
                     if response == 'y':
                         extras_flag = False
+                        silent_flag = True
                         continue
                     else:
                         keepgoing = False
-                # If columns have been given, keep going until all columns have been used:
+
+                # If columns have been given (as an array of which ones to use), keep going until all columns have been used:
                 else:
                     usecol_index +=1
                     if usecol_index >= len(self.usedcolumns):
@@ -130,13 +145,15 @@ class cmdset(object):
             loadedData = pd.DataFrame(dataMatrix.T, columns = dataNames)
             
             # For data cmdsets, create a Pandas data frame for the loaded uncertainties as well:
-            if readmode == 'data':
+            # modeltest cmdsets will have age and mass as well in their loaded data.
+            if readmode == 'data' or readmode == 'modeltest':
                 uncertMatrix = np.array(uncertMatrix)
                 uncerNames = np.array(uncertNames)
                 loadedUncert = pd.DataFrame(uncertMatrix.T, columns = uncertNames)
 
                 return loadedData, loadedUncert
 
+            # For models return age, mass, and magnitudes:
             return loadedData
 
         # === Attributes ===: 
@@ -149,6 +166,12 @@ class cmdset(object):
             self.initmasses = self.fullframe.ix[:, 'Initial Mass']
             self.magnitudes = self.fullframe.ix[:, 2:]
             # Also load info on other params...
+
+        elif kind == 'modeltest':
+            self.fullframe, self.uncertainties = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
+            self.ages = self.fullframe.ix[:, 'log10 age']
+            self.initmasses = self.fullframe.ix[:, 'Initial Mass']
+            self.magnitudes = self.fullframe.ix[:, 2:]
 
         self.kind = kind
      
@@ -368,7 +391,7 @@ def select_pathtofile(mode):
     if mode == 'test':
         return root_dir
 
-    elif mode == 'model':
+    elif mode == 'model' or mode == 'modeltest':
         cmd_model_path = root_dir + '/model'
         print('SELECT DESIRED MODEL PATH:\n(Reading from {:s}.)'.format(cmd_model_path))
         model_version_path = cmd_model_path + user.select_a_dir(cmd_model_path,type_flag = 1)

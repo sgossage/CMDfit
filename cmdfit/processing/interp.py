@@ -52,7 +52,7 @@ def find_closestMasses(initmass, mass_array, returnIndices = True):
 
         # If an array of indices were found...
         if isinstance(closestMass_index, list) or isinstance(closestMass_index, np.ndarray):
-            closestMass_index = closestMass_index[-1]
+            closestMass_index = closestMass_index[0]
 
         bigMass = mass_array[closestMass_index + 1]
         lilMass = closestMass
@@ -64,7 +64,7 @@ def find_closestMasses(initmass, mass_array, returnIndices = True):
         
         # If an array of indices were found...
         if isinstance(closestMass_index, list) or isinstance(closestMass_index, np.ndarray):
-            closestMass_index = closestMass_index[-1]
+            closestMass_index = closestMass_index[0]
    
         lilMass = mass_array[closestMass_index - 1]
         bigMass = closestMass
@@ -84,7 +84,7 @@ def find_closestFeHs(FeH, FeH_array, returnIndices = True):
 
     # Found the closest FeH that is poorer than the given FeH.
     if closestFeH < FeH:
-        closestFeH_index = np.where(FeH_array == closestFeH)[0]
+        closestFeH_index = np.where(FeH_array == closestFeH)[0][0]
         richFeH = FeH_array[closestFeH_index + 1]
         poorFeH = closestFeH
         richFeH_index = closestFeH_index + 1
@@ -92,7 +92,7 @@ def find_closestFeHs(FeH, FeH_array, returnIndices = True):
 
     # '                           ' richer than the given FeH.
     else:
-        closestFeH_index = np.where(FeH_array == closestFeH)[0]
+        closestFeH_index = np.where(FeH_array == closestFeH)[0][0]
         poorFeH = FeH_array[closestFeH_index - 1]
         richFeH = closestFeH
         richFeH_index = closestFeH_index

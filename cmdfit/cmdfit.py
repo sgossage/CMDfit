@@ -51,30 +51,46 @@ def fitall():
 
     sns.plt.show()
 
-    return
+    return sampler
 
 def fitsingle():
 
     # load an observed cmd:
-    data_cmdset = data.cmdset('data')
+    #data_cmdset = data.cmdset('data')
     
+    # For testing I will load a magnitude from the models; I know the age/mass, etc. for this star so I can check that
+    # answers are correct...
+    data_cmdset = data.cmdset('modeltest')    
+
     # Load a set of model cmds; the user will select which directory to load from:
     allmodel_cmdsets = data.all_modelcmdsets()
-    
+    print('MODELS LOADED')
+
     # Arranging cmds in ascending order according to metallicity; this is necesary
     # for the finding function in interp.py to work...
+    print('SORTING MODELS IN ASCENDING ORDER OF [Fe/H].')
     FeH_list = [cmdset.FeH for cmdset in allmodel_cmdsets]
     sortedFeH_list = np.array(sorted(FeH_list))    
 
     temporary_cmdsets = [None]*len(allmodel_cmdsets)
+    temporary_cmdsets = []
 
-    for i in range(len(allmodel_cmdsets)):
-        temporary_cmdsets[np.where(sortedFeH_list == allmodel_cmdsets[i].FeH)[0]] = allmodel_cmdsets[i] 
+    print(allmodel_cmdsets[0].ages.values)
+    #test = [allmodel_cmdsets[i] for i in indices]
+    indices = []
+    for cmdset in allmodel_cmdsets:
+        index = np.where(sortedFeH_list == cmdset.FeH)[0][0]
+  
+    allmodel_cmdsets.sort(key=lambda x: x.FeH)
+    newsets = sorted(allmodel_cmdsets, key=lambda x: x.FeH)
+    print(newsets[0].ages.values)
 
-    allmodel_cmdsets = temporary_cmdsets
+    return
+    #allmodel_cmdsets = temporary_cmdsets
+    print('MODELS SORTED.')
 
     # Run MCMC with the supplied models and observed data (should make magindex selectable):
-    sampler = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex=0)
+    sampler = MCMC.getsamples(data_cmdset, temporary_cmdsets, sortedFeH_list, mode='single', magindex=28100)
 
     fig, (ax_feh, ax_age, ax_M1, ax_M2) = plt.subplots(4)
     ax_feh.set(ylabel='[Fe/H]')

@@ -20,8 +20,8 @@ def get_header(data_file, mode = 'data'):
     f.close()
 
     comments = []
-    metadata_numlines = 1
-    metadata_linesread = 0
+    #metadata_numlines = 1
+    #metadata_linesread = 0
 
     for string in lines:
         if '#' in string:
@@ -30,9 +30,9 @@ def get_header(data_file, mode = 'data'):
         if '#' not in string:
             # In MIST model files, metadata will exist on an uncommented line before the header, 
             # so don't exit just because we've reached that line:
-            if mode == 'model' and metadata_linesread < metadata_numlines:
-                metadata_linesread += 1
-                continue
+            #if mode == 'model' or mode == 'modeltest' and metadata_linesread < metadata_numlines:
+            #    metadata_linesread += 1
+            #    continue
                 
             break
 
@@ -44,25 +44,29 @@ def get_header(data_file, mode = 'data'):
     # Returns the list of header names.
     if mode == 'data':
         return hlist
-    if mode == 'model':
-        return hlist[6:]
+    if mode == 'model' or mode == 'modeltest':
+        modelfile_skippedcols = 7
+        return hlist[modelfile_skippedcols:]
 
 # ==========================================================================================================================
 
-def header_select_col(data_file, mode = 'data', returnNames = False):
+def header_select_col(data_file, mode = 'data', returnNames = False, silent=False):
 
     """
       Asks user to select a column from which data will be read.
     """
-
-    # Report the headers:
+    
+    # Get the header names in a list:
     hlist = get_header(data_file, mode)
+    
+    if silent != True:
 
-    print('Select data columns from {:s}'.format(data_file.split('/')[-1]))
-    print('========================================================')
-    for i, name in enumerate(hlist):
-        print('{:d}) {:s}'.format(i, name))
-    print('========================================================')
+        # Report the headers:
+        print('Select data columns from {:s}'.format(data_file.split('/')[-1]))
+        print('========================================================')
+        for i, name in enumerate(hlist):
+            print('{:d}) {:s}'.format(i, name))
+        print('========================================================')
     
     col1 = user.ask_for_specific_input('ENTER COLUMN INDEX OF DESIRED FILTER: ', type_to_check = int)
         
@@ -79,7 +83,7 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
       Handles the loading of data; loads a single column.
     """
 
-    print('\nLoading data from {:s}...\n'.format(data_file.split('/')[-1]))
+    #print('\nLoading data from {:s}...'.format(data_file.split('/')[-1]))
     # Open the data file and read in all lines, then close the file buffer:
     f = open(data_file)
     lines = f.readlines()
@@ -93,8 +97,9 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
 
     # If the mode is set to a model file, pick out the first uncommented line...in MIST .cmd files this line holds
     # metadata; this block grabs the meta data and separates it from the other data lines.
-    if mode == 'model':
-        meta_data = (data_lines[0].split('\n')[0]).split(' ')
+    if mode == 'model' or mode == 'modeltest':
+        # metadata  exists on the sixth line in MIST model files.
+        meta_data = re.compile('[+-]?\d+\.\d+|[+-]?\d+\.\d+\[eE][+-]?\d+').findall(lines[5])
         data_lines = data_lines[1:]
     
     # Look through lines and pick values from the desired column:
@@ -116,7 +121,7 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
         # For model files, we need to skip the lines between isochrones which exist in blocks separated by several empty lines.
         # Also, incomplete lines should be skipped -- I have a quick fix to handle this, but it should be ammended later.
         # Right now the code just checks if the length is less than the selected clumn index to mark incomplete lines.
-        if mode == 'model':
+        if mode == 'model' or mode == 'modeltest':
             if not l or len(l) < column_index:
                 continue
 
@@ -133,7 +138,7 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
     if mode == 'data':
         return np.array(data_column)
 
-    elif mode == 'model':
+    elif mode == 'model' or mode == 'modeltest':
         # If returning ages, masses, and meta data (i.e., extras) w/ the magnitudes:
         if model_extras:
             return np.array(data_column), np.array(age_column), np.array(mass_column), np.array(meta_data)
@@ -143,36 +148,39 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
     
 # ==========================================================================================================================
 
-def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = False, returnNames = False, model_extras=False, corrections=None):
+def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = False, returnNames = False, model_extras=False, corrections=None, silent=False):
     
     """
       returns columns in a useful way (e.g. mass, age, and a magnitude all together), or the columns with their names and indices.
     """
-
+    modelfile_skippedcols = 7
+    
     if given_column != None:
         col1 = given_column
         hlist = get_header(cmd_datafile, mode)
         # get_header() skips the first 6 columns (b/c they are not magnitudes), so need to offset
-        # the given column index by six.
-        col1_name = hlist[col1 - 6]
+        # the given column index by seven.
+        col1_name = hlist[col1 - modelfile_skippedcols]
+        print('------------------------------------------------------------------------')
         print('\nASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
 
     else:
         # Get one column index and possibly header name for a desired magnitude:
         if returnNames:
-            col1, col1_name = header_select_col(cmd_datafile, mode, returnNames)
+            col1, col1_name = header_select_col(cmd_datafile, mode, returnNames, silent=silent)
         else:
-            col1 = header_select_col(cmd_datafile, mode)
+            col1 = header_select_col(cmd_datafile, mode, silent=silent)
 
-        print('\nASSIGNING DATA...')    
+        print('------------------------------------------------------------------------')
+        print('\nASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
 
     # with mode = 'model' in the header_select_... function, the returned column 
     # numbers will be offset by 6, since it skips the columns which are not bandpass
     # magnitudes. Here, that offset is corrected.
 
     # A given column will have already had this offset applied, so no need to do it again.
-    if mode == 'model' and given_column == None:
-        col1 += 6
+    if mode == 'model' or mode == 'modeltest'and given_column == None:
+        col1 += modelfile_skippedcols
 
     # If returning extra values (masses and ages of all stars) and not just magnitudes:
     if model_extras:
