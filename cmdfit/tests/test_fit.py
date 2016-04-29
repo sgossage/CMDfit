@@ -1,18 +1,9 @@
 from unittest import TestCase
 import os
 import numpy as np
-import cmdfit.tests.a_test as a_test
 import cmdfit.processing.columnread as cread
 from cmdfit import data as data
 import cmdfit.processing.magcorrections as magcorr
-
-# Right now a test to test that I can test. I may change this, but right now it
-# just checks the result of 1 + 2.
-class TestSum(TestCase):
-    def test_calculation(self):
-        x=1
-        res = a_test.sumtest(x)
-        self.assertEqual(res, 3)
 
 # Tests that headers are being read correctly:
 class TestIO(TestCase):

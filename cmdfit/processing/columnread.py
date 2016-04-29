@@ -244,9 +244,9 @@ def getall_files(file_dir):
     for i in range(len(file_list)):
 
         # Add on the directory's path to turn each list element into the full path to the file:
-        file_list[i] = file_dir + "/" + file_list[i]
+        file_list[i] = os.path.join(file_dir, file_list[i])
 
-    # Return file_list as a list of fulls paths to each file:
+    # Return file_list as a list of full paths to each file:
     return file_list
 
 # ======================================================================================================================================================

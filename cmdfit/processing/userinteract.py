@@ -28,8 +28,8 @@ def select_a_dir(dir_to_search, type_flag = 1):
     selection = ask_for_specific_input("Enter the index of the desired {:s}".format(readin_types[type_flag -1]), type_to_check = int)
     print('-----------------------------------------------')
     
-    # return the selected sub directory in the format of /sub_dir:
-    return '/' + contents_list[selection]  
+    # return the path to the selected sub-directory or file:
+    return os.path.join(dir_to_search, contents_list[selection])  
 
 # ======================================================================================================================================================
 # ======================================================================================================================================================

@@ -17,7 +17,7 @@ class cmdset(object):
                 if data_file == None:
 
                     specific_data_dir = select_pathtofile(readmode)
-                    data_file = specific_data_dir + user.select_a_dir(specific_data_dir, 2)
+                    data_file = user.select_a_dir(specific_data_dir, 2)
 
                 extras_flag = False
 
@@ -25,7 +25,7 @@ class cmdset(object):
                 if data_file == None:
 
                     selected_run_path = select_pathtofile(readmode)
-                    data_file = selected_run_path + user.select_a_dir(selected_run_path,type_flag = 2)
+                    data_file = user.select_a_dir(selected_run_path,type_flag = 2)
                 
                 # For model cmdsets, turn model extras on initially. This will allow for information detailing intitial
                 # masses of model stars and their ages as well:
@@ -366,7 +366,8 @@ def all_modelcmdsets():
     model_cmdsets = []
     usedcolumns = None
     print()
-
+    
+    # Loop through model files and create a cmdset from each:
     for i in range( len(data_files) ):
         
         print('======================================================================')
@@ -376,8 +377,12 @@ def all_modelcmdsets():
 
         # On subsequent loops, use the user selected columns of the first model cmdset:
         usedcolumns = model_cmdsets[i].usedcolumns
-        if i > 1 and model_cmdsets[i].usedcolumns != model_cmdsets[i-1].usedcolumns:
-            print('WARNING: The usedcolumns do not match between cmdsets {:d} and {:d}. This will likely lead to erros.'.format(i, i-1))
+        
+        if i > 1:
+            # Returns True if any of the columns do not match; issue a warning if this is the case:
+            usedcol_donot_match = not any(model_cmdsets[i].usedcolumns - model_cmdsets[i-1].usedcolumns)
+            if usedcol_donot_match:
+                print('WARNING: The usedcolumns do not match between cmdsets {:d} and {:d}. This will likely lead to erros.'.format(i, i-1))
         
 
     return model_cmdsets
@@ -394,16 +399,16 @@ def select_pathtofile(mode):
         return root_dir
 
     elif mode == 'model' or mode == 'modeltest':
-        cmd_model_path = root_dir + '/model'
+        cmd_model_path = os.path.join(root_dir, 'model')
         print('SELECT DESIRED MODEL PATH:\n(Reading from {:s}.)'.format(cmd_model_path))
-        model_version_path = cmd_model_path + user.select_a_dir(cmd_model_path,type_flag = 1)
-        selected_run_path = model_version_path + user.select_a_dir(model_version_path,type_flag = 1)
+        model_version_path = user.select_a_dir(cmd_model_path,type_flag = 1)
+        selected_run_path = user.select_a_dir(model_version_path,type_flag = 1)
         return selected_run_path
 
     elif mode == 'data':
-        data_dir = root_dir + '/data'
+        data_dir = os.path.join(root_dir, 'data')
         print('SELECT DESIRED DATA PATH:\n(Reading from {:s}.)'.format(data_dir))
-        specific_data_dir = data_dir + user.select_a_dir(data_dir,type_flag = 1)
+        specific_data_dir = user.select_a_dir(data_dir,type_flag = 1)
         return specific_data_dir
 
     else:                                             
