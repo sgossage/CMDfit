@@ -5,8 +5,8 @@ from . import userinteract as user
 def ABtoVega(magnitude_array, band_column, silent = False):
 
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    data_dir = root_dir + '/data'
-    mag_correction_file = data_dir + '/convert_AB_to_Vega.txt'
+    data_dir = os.path.join(root_dir, 'data')
+    mag_correction_file = os.path.join(data_dir, 'convert_AB_to_Vega.txt')
 
     # The corrections that we want are in the last column of this file:
     ABtoVega_corrections = np.loadtxt(mag_correction_file, usecols=(-1,))
