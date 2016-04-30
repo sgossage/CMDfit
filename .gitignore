@@ -19,3 +19,4 @@ backup/
 # Others
 /__pycache__/
 MIST_v0.31/
+*#
