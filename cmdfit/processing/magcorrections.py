@@ -16,7 +16,7 @@ def ABtoVega(magnitude_array, band_column, silent = False):
     # (for Hyades, van Leeuwen et al., 2009):
     # if 'Hyades' in data_file:
     distance_modulus = 3.33
-    if silent != True:
+    if silent == False:
         print('\nConverting from AB magnitude system to Vega system...\nApplying distance modulus correction...')
         print('Applying HYADES distance modulus: {:f}'.format(distance_modulus))     
 

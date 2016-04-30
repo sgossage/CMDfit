@@ -1,6 +1,7 @@
 import numpy as np
 from . import data
 import emcee
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from cmdfit.statistics import MCMC
@@ -39,7 +40,7 @@ def fitall():
     allmodel_cmdsets = temporary_cmdsets
 
     # Run MCMC with the supplied models and observed data:
-    sampler = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list)
+    sampler, ndim, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list)
 
     fig, (ax_feh, ax_age) = plt.subplots(2)
     ax_feh.set(ylabel='[Fe/H]')
@@ -48,10 +49,20 @@ def fitall():
     for i in range(4):
         sns.tsplot(sampler.chain[i,:,0], ax=ax_feh)
         sns.tsplot(sampler.chain[i,:,1], ax=ax_age)
+    
+    sns.plt.show()
+
+    burnin_cut = eval(input("Enter an integer for where to cutoff the burn-in period: "))    
+
+    samps = s.chain[:,burnin_cut:,:]
+    traces = samps.reshape(-1,4).T
+
+    param_samples = pd.DataFrame({'z': traces[0], 'logage':traces[1], 'm1':traces[2], 'm2':traces[3]})
+    jkde = sns.jointplot(x='z', y='logage', data=param_samples, kind='kde', ax = fehvage)
 
     sns.plt.show()
 
-    return sampler
+    return param_samples
 
 def fitsingle():
 
@@ -64,7 +75,7 @@ def fitsingle():
 
     # Load a set of model cmds; the user will select which directory to load from:
     allmodel_cmdsets = data.all_modelcmdsets()
-    print('MODELS LOADED...')
+    print('\nMODELS LOADED...')
 
     # Arranging cmds in ascending order according to metallicity; this is necesary
     # for the finding function in interp.py to work...
@@ -77,7 +88,7 @@ def fitsingle():
     allmodel_cmdsets.sort(key=lambda model: model.FeH)
 
     # Run MCMC with the supplied models and observed data (should make magindex selectable):
-    sampler = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex=28100)
+    sampler, ndim, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex=np.random.random_integers(len(data_cmdset.magnitudes.values)))#28100)
 
     fig, (ax_feh, ax_age, ax_M1, ax_M2) = plt.subplots(4)
     ax_feh.set(ylabel='[Fe/H]')
@@ -92,5 +103,17 @@ def fitsingle():
         sns.tsplot(sampler.chain[i,:,3], ax=ax_M2)
 
     sns.plt.show()
+    burnin_cut = eval(input("Enter an integer for where to cut off the burn-in period: "))    
 
-    return sampler
+    samples = sampler.chain[:,burnin_cut:,:]
+    traces = samples.reshape(-1, ndim).T
+
+    param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3], 'Pfield':traces[4]})
+    q = param_samples.quantile([0.16, 0.50, 0.84], axis=0)
+    print(q)   
+
+    jkde = sns.jointplot(x='[Fe/H]', y='log10 Age', data=param_samples, kind='kde')
+
+    sns.plt.show() 
+
+    return param_samples

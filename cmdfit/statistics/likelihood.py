@@ -7,7 +7,7 @@ import seaborn as sns
 from . import priors
 
 # Calculates the likelihood of a single star, i.e. a single magnitude, given the set of parameters theta.
-def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdsets, FeH_list, data_mag_range, FeH, age, Pfield = 0.25, calc_log = False):
+def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdsets, FeH_list, data_mag_range, FeH, age, calc_log = False):
 
     """
       The form used here is based on the likelihood function used by van Dyk et al. 2009. This function generates a model 
@@ -91,7 +91,9 @@ def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
     """
 
     # theta[1] is secondary mass.
-    initmass = mass_theta[0]
+    initmass = star_theta[0]
+    secondarymass = star_theta[1]
+    Pfield = star_theta[2]
     #FeH = theta[2]
     #age = theta[3]
 
@@ -109,23 +111,34 @@ def likelihood(mass_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
         # Calculate model magnitudes from each:
         FeHrich_mag = allmodel_cmdsets[FeHrich_index].getmag(age, initmass, data_bandindex)
         FeHpoor_mag = allmodel_cmdsets[FeHpoor_index].getmag(age, initmass, data_bandindex)
-        
+        #Secondary mass:
+        FeHrich_mag2 = allmodel_cmdsets[FeHrich_index].getmag(age, secondarymass, data_bandindex)
+        FeHpoor_mag2 = allmodel_cmdsets[FeHpoor_index].getmag(age, secondarymass, data_bandindex)
+
         # If both interpolated magnitudes were produced from values within valid ranges of mass and age:
-        if np.isfinite(FeHpoor_mag) and np.isfinite(FeHrich_mag):
+        if np.isfinite(FeHpoor_mag) and np.isfinite(FeHrich_mag) and np.isfinite(FeHpoor_mag2) and np.isfinite(FeHrich_mag2):
             # Finally interpolate using the closest FeHs and their magnitudes to get the magnitude at the given FeH:
             model_mag = interp.linear_interp(FeH, (FeHpoor, FeHpoor_mag), (FeHrich, FeHrich_mag))
+            model_mag2 = interp.linear_interp(FeH, (FeHpoor, FeHpoor_mag2), (FeHrich, FeHrich_mag2))
         else:
             model_mag = np.inf
+            model_mag2 = np.inf
 
     # Or else if the metallicity does exit...
     else:
         #...and is within valid range, get the magnitude:
         if FeH > FeH_min and FeH < FeH_max:
             model_mag = allmodel_cmdsets[FeH_index].getmag(age, initmass, data_bandindex)
+            model_mag2 = allmodel_cmdsets[FeH_index].getmag(age, secondarymass, data_bandindex)
         # Or else if not in range, make probability zero:
         else:
             return -np.inf
-    
+
+    if np.isfinite(model_mag) and np.isfinite(model_mag2):
+        model_mag = -2.5 * np.log10(10**(-model_mag/2.5) + 10**(-model_mag2 / 2.5))
+    else:
+        return -np.inf    
+
     # MAKE THIS INPUT SETH <><@!? (prob. of being a field star for mixture model)
     #Pfield = 0.25
 
@@ -281,16 +294,12 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         age = theta[1]
         M1 = theta[2]
         M2 = theta[3]
-        mass_theta = (M1, M2)
+        Pfield = theta[4]
+        star_theta = (M1, M2, Pfield)
         band_mag = band_magnitudes[magindex]
         band_uncert = band_uncertainties[magindex]
 
-        lp = priors.mass_lnprior(mass_theta)
-
-        if not np.isfinite(lp):
-            return -np.inf
-
-        full_lnLikelihood = lp + likelihood(mass_theta, band_mag, band_uncert, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, calc_log = True)
+        full_lnLikelihood = stardata_lnprobability(star_theta, band_mag, band_uncert, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age)
 
     else:
         # Placeholder error message...
@@ -358,7 +367,7 @@ def allband_lnLikelihood(theta, data_cmdset, allmodel_cmdsets, FeH_list, mode='a
 
     return fulljoint_lnLikelihood
 
-def stardata_lnprobability(mass_theta, star_magnitude, star_sigma, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age):
+def stardata_lnprobability(star_theta, star_magnitude, star_sigma, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age):
 
     """
       This function calls the likelihood() function (i.e., in order to calculate the probability of an indvidual star)
@@ -431,9 +440,9 @@ def stardata_lnprobability(mass_theta, star_magnitude, star_sigma, bandindex, al
 
     # The logarithm of the likelihood of the ith star in the jth band times its prior on mass
 
-    lp = priors.mass_lnprior(mass_theta)
+    lnp = priors.star_lnprior(star_theta)
 
-    if not np.isfinite(lp):
+    if not np.isfinite(lnp):
         return -np.inf
 
-    return lp + likelihood(mass_theta, star_magnitude, star_sigma, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, calc_log=True)
+    return lnp + likelihood(star_theta, star_magnitude, star_sigma, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, calc_log=True)

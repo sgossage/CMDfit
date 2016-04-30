@@ -62,16 +62,18 @@ def lnposterior(theta, data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_r
     """   
 
     # Calculate the priors on metallicity and age:
-    lp = priors.lnprior(theta, FeH_range, age_range)
+    lnp = priors.lnprior(theta, FeH_range, age_range)
+    # Calculate the log-likelihood:
+    lnlikelihood = likelihood.allband_lnLikelihood(theta, data_cmdset, allmodel_cmdsets, FeH_list, mode, magindex)
 
     # If the sampler picked values out of the valid ranges, assign zero probability
     # for this paritcular sampling:
-    if not np.isfinite(lp):
+    if not np.isfinite(lnp) or not np.isfinite(lnlikelihood):
         return -np.inf
 
     # Or else, return the full posterior. The allband_lnLikelihood() function handles the sampling
     # on primary and secondary initial masses; it also handles the priors of those parameters:
-    return lp + likelihood.allband_lnLikelihood(theta, data_cmdset, allmodel_cmdsets, FeH_list, mode, magindex)
+    return lnp + lnlikelihood
 
 def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=None):
     
@@ -110,17 +112,18 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
 
     elif mode == 'single':
         # emcee sampler parameters:
-        ndim = 4
-        nwalkers = 10
-        nsteps = 300
+        ndim = 5
+        nwalkers = 16
+        nsteps = 400
        
-        #  [FeH, age, primary initial mass, secondary initial mass]
+        #  [FeH, age, primary initial mass, secondary initial mass, and Pfield]
         if data_cmdset.kind == 'modeltest':
-            initial_positions = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.0]
+            initial_positions = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.0, 0.0]
             print(initial_positions)
+            initial_positions = [0.10, 7.5, 1.0, 0.5, 0.5]
 
         else:
-            initial_positions = [0.15, 7.0, 1.0, 0.5]
+            initial_positions = [0.10, 7.5, 1.0, 0.5, 0.5]
 
         # Set up the walkers in a Gaussian ball around the initial positions:
         initial_positions = [initial_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
@@ -133,4 +136,4 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
         sampler.run_mcmc(initial_positions, nsteps)
         print('DONE\n')
 
-    return sampler
+    return sampler, ndim, nwalkers, nsteps

@@ -38,9 +38,9 @@ def lnprior(theta, FeH_range, age_range):
     metallicity = theta[0]
     age = theta[1]
 
-    if FeH_range[0] < metallicity < FeH_range[1] and age_range[0] < age < age_range[1]:
+    if age_range[0] < age < age_range[1]: #FeH_range[0] < metallicity < FeH_range[1] and:
         
-        return 0.0
+        return 0.0 + FeH_lnprior(metallicity)
 
     return -np.inf
 
@@ -83,15 +83,17 @@ def primary_mass_lnprior(primary_mass, calc_log=True):
     """
 
     # The Gaussian prior on primary initial mass; constants derived from Miller & Scalo IMF.
+    # This IMF is ~a half Gaussian distribution which peaks at around 0.1 in log stellar mass.
+    # (See Table 7 in Miller & Scalo 1975.)
     
-    primaryM_prior = np.exp( -0.5 * ((np.log(primary_mass) + 1.02) / 0.677)**2.0 )
+    primaryM_prior = 106.0 * np.exp( -0.5 * ((np.log10(primary_mass) + 1.02) / 0.677)**2.0 )
 
     if calc_log:
         return np.log(primaryM_prior)
     else:
         return primaryM_prior
 
-def mass_lnprior(mass_theta):
+def star_lnprior(star_theta):
 
     """
       This function represents a flat prior probability distrubtion in the range of 0 to the proposed
@@ -119,12 +121,27 @@ def mass_lnprior(mass_theta):
           
     """
 
-    primary_mass, secondary_mass = mass_theta
+    primary_mass = star_theta[0]
+    secondary_mass = star_theta[1]
+    Pfield = star_theta[2]
 
-    if 0.0 < secondary_mass < primary_mass:
+    if 0.0 <= secondary_mass <= primary_mass and 0.0 <= Pfield <= 1.0:
 
         return 0.0 + primary_mass_lnprior(primary_mass)
 
     return -np.inf
+
+def FeH_lnprior(metallicity, calc_log = True):
+
+    # Gaussian metallicity prior w/ std. dev. of +/- 0.1 dex, centered on FeH = 0.0 a la Brandt 2015.
+    # (Reflecting solar neighborhood contraints?)
+    sig = 0.1
+    const_factor = 1.0 / np.sqrt(2.0 * np.pi * sig**2.0)
+    FeH_prior = const_factor * np.exp( -0.5 * (metallicity/sig)**2.0 )
+
+    if calc_log:
+        return np.log(FeH_prior)
+    else:
+        return FeH_prior
 
 

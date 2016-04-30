@@ -52,13 +52,19 @@ class cmdset(object):
             if readmode == 'model':
                 if usecol == None:
                     self.usedcolumns = []
+                    # Report magnitude correction and header info on first model:
+                    silent_flag = False
                 else:
                     self.usedcolumns = np.array(usecol)
                     usecol_index = 0
                     usecol = self.usedcolumns[usecol_index]
-           
-            # Flag to suppress reporting of header names:
-            silent_flag = False
+                    # If loading in subsequent models via all_modelcmdsets(), suppress notifications:
+                    silent_flag = True
+      
+            # Data and modeltest cmdsets should report headers and notifications since they
+            # are created singularly:
+            else:
+                silent_flag = False
 
             # This while loop runs a number of times to allow the user to select which columns to read in from the data file:
             while keepgoing:
@@ -202,149 +208,156 @@ class cmdset(object):
         age_array = self.ages.values
         mass_array = self.initmasses.values        
         mag_array = self.magnitudes.values[:, band]
+
+        # Check if the proposed age is within the valid range:
+        if age > np.amin(age_array) and age < np.amax(age_array):
         
-        isochrone_indexlist = np.where(age_array == age)[0]
-       
-        # If the age does not exist, but it is within range of valid values:
-        if not isochrone_indexlist:
-            # Determine the closest ages via interpolation:
-            younger_Age, older_Age = interp.find_closestAges(age, age_array)            
-            
-            # Get indices of all stars corresponding to the found ages (this is an isochrone block):
-            older_Iso_indexlist = np.where(age_array == older_Age)
-            younger_Iso_indexlist = np.where(age_array == younger_Age)
+            isochrone_indexlist = np.where(age_array == age)[0]
 
-            # Now we have either the closest ages. Need to do the same for masses.
-            # Acquire the available masses for the isochrones found above:
-            older_mass_array = mass_array[older_Iso_indexlist]
-            younger_mass_array = mass_array[younger_Iso_indexlist]
+            # If the age does not exist, but it is within range of valid values:
+            if not isochrone_indexlist:
+                # Determine the closest ages via interpolation:
+                younger_Age, older_Age = interp.find_closestAges(age, age_array)            
 
-            # Acquire the magnitudes as well, we will need these:
-            older_mag_array = mag_array[older_Iso_indexlist]
-            younger_mag_array = mag_array[younger_Iso_indexlist]
+                # Get indices of all stars corresponding to the found ages (this is an isochrone block):
+                older_Iso_indexlist = np.where(age_array == older_Age)
+                younger_Iso_indexlist = np.where(age_array == younger_Age)
 
-            # Check if the given mass is within bounds of the predicted masses for the isochrones found:
-            # (If within bounds, get the masses from the isochrone.)
-            if initmass < np.amax(np.array(older_mass_array)) and initmass > np.amin(np.array(older_mass_array)):
+                # Now we have either the closest ages. Need to do the same for masses.
+                # Acquire the available masses for the isochrones found above:
+                older_mass_array = mass_array[older_Iso_indexlist]
+                younger_mass_array = mass_array[younger_Iso_indexlist]
 
-                older_mass_index = np.where(older_mass_array == initmass)[0]
-           
-                # If the mass does not exist, need to find adjacent masses and prepare for interpolation.
-                if not older_mass_index:
-                    # Find the closest masses in this isochrone:
-                    older_bigMass, older_lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, older_mass_array)
-                    
-                    # Get corresponding magnitudes:
-                    older_bigmag_val = older_mag_array[bigMass_index]
-                    older_lilmag_val = older_mag_array[lilMass_index]
+                # Acquire the magnitudes as well, we will need these:
+                older_mag_array = mag_array[older_Iso_indexlist]
+                younger_mag_array = mag_array[younger_Iso_indexlist]
 
-                # Or else the mass was found:
+                # Check if the given mass is within bounds of the predicted masses for the isochrones found:
+                # (If within bounds, get the masses from the isochrone.)
+                if initmass < np.amax(np.array(older_mass_array)) and initmass > np.amin(np.array(older_mass_array)):
+
+                    older_mass_index = np.where(older_mass_array == initmass)[0]
+
+                    # If the mass does not exist, need to find adjacent masses and prepare for interpolation.
+                    if not older_mass_index:
+                        # Find the closest masses in this isochrone:
+                        older_bigMass, older_lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, older_mass_array)
+
+                        # Get corresponding magnitudes:
+                        older_bigmag_val = older_mag_array[bigMass_index]
+                        older_lilmag_val = older_mag_array[lilMass_index]
+
+                    # Or else the mass was found:
+                    else:
+                        older_mass_val = older_mass_array[older_mass_index]
+                        older_mag_val = older_mag_array[older_mass_index]
+
+                # If the isochrone doesn't have the mass available, return infinity. This lets the code know that 
                 else:
-                    older_mass_val = older_mass_array[older_mass_index]
-                    older_mag_val = older_mag_array[older_mass_index]
-            
-            # If the isochrone doesn't have the mass available, return infinity. This lets the code know that 
-            else:
-                # Making older_mass_index not empty will signal that no older mass was found.
-                older_mass_index = [0]
-                older_mag_val = np.inf
-            
-            # See if we can grab masses from the younger isochrone too:
-            if initmass < np.amax(np.array(younger_mass_array)) and initmass > np.amin(np.array(younger_mass_array)):
-                
-                younger_mass_index = np.where(younger_mass_array == initmass)[0]     
-                
+                    # Making older_mass_index not empty will signal that no older mass was found.
+                    older_mass_index = [0]
+                    older_mag_val = np.inf
+
+                # See if we can grab masses from the younger isochrone too:
+                if initmass < np.amax(np.array(younger_mass_array)) and initmass > np.amin(np.array(younger_mass_array)):
+
+                    younger_mass_index = np.where(younger_mass_array == initmass)[0]     
+
+                    if not younger_mass_index:
+
+                        younger_bigMass, younger_lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, younger_mass_array)
+
+                        younger_lilmag_val = younger_mag_array[lilMass_index]
+                        younger_bigmag_val = younger_mag_array[bigMass_index]
+
+                    else:
+                        younger_mass_val = younger_mass_array[younger_mass_index]
+                        younger_mag_val = younger_mag_array[younger_mass_index]
+                else:
+                    younger_mass_index = [0]
+                    younger_mag_val = np.inf
+
+                # Need a plan to deal with if the mass is NOT within these ranges...maybe return a weird number to let rest of code know to kill this value.
+
+                # Right now, Ill just linearly interpolate...
+                # Given then masses found and the magnitudes found, and the given initial mass, linearly interpolate the magnitude for the younger and older isochrones:
+                # This  is if the given mass was not found:
+                older_interp = False
+                younger_interp = False
+
+                # If we need to interpolate masses in the younger isochrone:
                 if not younger_mass_index:
+                    younger_interpmag = interp.linear_interp(initmass, (younger_lilMass, younger_lilmag_val), (younger_bigMass, younger_bigmag_val))
+                    younger_interp = True
+                    # Set younger_mag_value to this interpolated value. This may then be used in case the mass was
+                    # already existent in the older isochrone:
+                    younger_mag_val = younger_interpmag
 
-                    younger_bigMass, younger_lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, younger_mass_array)
+                # If we need to interpolate masses in the older isochrone:
+                if not older_mass_index:
+                    older_interpmag = interp.linear_interp(initmass, (older_lilMass, older_lilmag_val), (older_bigMass, older_bigmag_val))
+                    older_interp = True
+                    older_mag_val = older_interpmag
 
-                    younger_lilmag_val = younger_mag_array[lilMass_index]
-                    younger_bigmag_val = younger_mag_array[bigMass_index]
+                # If we were able to interpolate masses in both isochrones, interpolate between isochrone ages:
+                if older_interp and younger_interp:
+                    # Now use the newly interpolated magnitudes for each isochrone and interpolate between isochrones to get the interpolated magnitude at the desired age:
+                    interpmag = interp.linear_interp(age, (younger_Age, younger_interpmag), (older_Age, older_interpmag))
 
+                # Or else if either interpolation did not take place in both isochrones...
+                else: 
+                    # ...but masses were in range in both isochrones, then it just means the masses already existed, so just interpolate between isochrones:
+                    if np.isfinite(younger_mag_val) and np.isfinite(older_mag_val):
+                        interpmag = interp.linear_interp(age, (younger_Age, younger_mag_val), (older_Age, older_mag_val))
+
+                    # If either mass was out of range for an isochrone, then return a weird value to let the code know:
+                    else:
+                        interpmag = [np.inf]   
+
+                if isinstance(interpmag, float) or isinstance(interpmag, int):
+                    return interpmag
                 else:
-                    younger_mass_val = younger_mass_array[younger_mass_index]
-                    younger_mag_val = younger_mag_array[younger_mass_index]
+                    return interpmag[0]
+
+            # Now we have an interpolated magnitude in the event that the given age is not found. 
+            # If the age was found, just return the corresponding magnitude as long as the given mass is within range
+            # for the relevant isochrone.
             else:
-                younger_mass_index = [0]
-                younger_mag_val = np.inf
+                # Use isochrone_indexlist...
+                # Get the relevant masses:
+                mass_array = mass_array[isochrone_indexlist]
 
-            # Need a plan to deal with if the mass is NOT within these ranges...maybe return a weird number to let rest of code know to kill this value.
-            
-            # Right now, Ill just linearly interpolate...
-            # Given then masses found and the magnitudes found, and the given initial mass, linearly interpolate the magnitude for the younger and older isochrones:
-            # This  is if the given mass was not found:
-            older_interp = False
-            younger_interp = False
- 
-            # If we need to interpolate masses in the younger isochrone:
-            if not younger_mass_index:
-                younger_interpmag = interp.linear_interp(initmass, (younger_lilMass, younger_lilmag_val), (younger_bigMass, younger_bigmag_val))
-                younger_interp = True
-                # Set younger_mag_value to this interpolated value. This may then be used in case the mass was
-                # already existent in the older isochrone:
-                younger_mag_val = younger_interpmag
- 
-            # If we need to interpolate masses in the older isochrone:
-            if not older_mass_index:
-                older_interpmag = interp.linear_interp(initmass, (older_lilMass, older_lilmag_val), (older_bigMass, older_bigmag_val))
-                older_interp = True
-                older_mag_val = older_interpmag
+                # Check if the mass we need exists, and if the mass is within bounds:
+                if initmass < np.amax(np.array(mass_array)) and initmass > np.amin(np.array(mass_array)):
 
-            # If we were able to interpolate masses in both isochrones, interpolate between isochrone ages:
-            if older_interp and younger_interp:
-                # Now use the newly interpolated magnitudes for each isochrone and interpolate between isochrones to get the interpolated magnitude at the desired age:
-                interpmag = interp.linear_interp(age, (younger_Age, younger_interpmag), (older_Age, older_interpmag))
+                    mass_index = np.where(mass_array == initmass)[0]
 
-            # Or else if either interpolation did not take place in both isochrones...
-            else: 
-                # ...but masses were in range in both isochrones, then it just means the masses already existed, so just interpolate between isochrones:
-                if np.isfinite(younger_mag_val) and np.isfinite(older_mag_val):
-                    interpmag = interp.linear_interp(age, (younger_Age, younger_mag_val), (older_Age, older_mag_val))
+                    # If the mass does not exist, need to find adjacent masses and prepare for interpolation.
+                    if not mass_index:
+                        bigMass, lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, mass_array)
 
-                # If either mass was out of range for an isochrone, then return a weird value to let the code know:
+                        bigmag_val = mag_array[bigMass_index]
+                        lilmag_val = mag_array[lilMass_index]
+
+                        # Interpolate between masses within this isochrone:
+                        interp_mag = interp.linear_interp(initmass, (older_lilMass, older_lilmag_val), (older_bigMass, olderbigmag_val))
+
+                        return interp_mag[0]
+
+                    # Or else the mass was found,
+                    else:
+                        mass_val = mass_array[mass_index]
+                        mag_val = mag_array[mass_index]
+
+                        return mag_val[0]
+
+                # Or else if the mass was not in range for the isochrone, return infinity to let the code know. These values will have zero probability.
                 else:
-                    interpmag = [np.inf]   
-         
-            if isinstance(interpmag, float) or isinstance(interpmag, int):
-                return interpmag
-            else:
-                return interpmag[0]
+                    return [np.inf]
 
-        # Now we have an interpolated magnitude in the event that the given age is not found. 
-        # If the age was found, just return the corresponding magnitude as long as the given mass is within range
-        # for the relevant isochrone.
+        # Or else if the proposed age is invalid, return an infinite magnitude to kill the probability for this proposition:
         else:
-            # Use isochrone_indexlist...
-            # Get the relevant masses:
-            mass_array = mass_array[isochrone_indexlist]
-            
-            # Check if the mass we need exists, and if the mass is within bounds:
-            if initmass < np.amax(np.array(mass_array)) and initmass > np.amin(np.array(mass_array)):
-
-                mass_index = np.where(mass_array == initmass)[0]
-           
-                # If the mass does not exist, need to find adjacent masses and prepare for interpolation.
-                if not mass_index:
-                    bigMass, lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, mass_array)
-                    
-                    bigmag_val = mag_array[bigMass_index]
-                    lilmag_val = mag_array[lilMass_index]
-                    
-                    # Interpolate between masses within this isochrone:
-                    interp_mag = interp.linear_interp(initmass, (older_lilMass, older_lilmag_val), (older_bigMass, olderbigmag_val))
-
-                    return interp_mag[0]
-
-                # Or else the mass was found,
-                else:
-                    mass_val = mass_array[mass_index]
-                    mag_val = mag_array[mass_index]
-
-                    return mag_val[0]
-
-            # Or else if the mass was not in range for the isochrone, return infinity to let the code know. These values will have zero probability.
-            else:
-                return [np.inf]
+            return [np.inf]
                  
 def all_modelcmdsets():
 
@@ -370,8 +383,8 @@ def all_modelcmdsets():
     # Loop through model files and create a cmdset from each:
     for i in range( len(data_files) ):
         
-        print('======================================================================')
-        print('Creating model cmdset for ' + data_files[i].split('/')[-1] + '...')
+        print('\n======================================================================')
+        print('Creating model cmdset #{:d} for '.format(i) + data_files[i].split('/')[-1] + '...')
 
         model_cmdsets.append(cmdset('model', data_files[i], usedcolumns))
 
@@ -380,9 +393,9 @@ def all_modelcmdsets():
         
         if i > 1:
             # Returns True if any of the columns do not match; issue a warning if this is the case:
-            usedcol_donot_match = not any(model_cmdsets[i].usedcolumns - model_cmdsets[i-1].usedcolumns)
+            usedcol_donot_match = any(model_cmdsets[i].usedcolumns - model_cmdsets[i-1].usedcolumns)
             if usedcol_donot_match:
-                print('WARNING: The usedcolumns do not match between cmdsets {:d} and {:d}. This will likely lead to erros.'.format(i, i-1))
+                print('WARNING: The usedcolumns do not match between cmdsets {:d} and {:d}. This will likely lead to errors.'.format(i, i-1))
         
 
     return model_cmdsets

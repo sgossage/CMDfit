@@ -51,7 +51,7 @@ def header_select_col(data_file, mode = 'data', returnNames = False, silent=Fals
     # Get the header names in a list:
     hlist = get_header(data_file, mode)
     
-    if silent != True:
+    if silent == False:
 
         # Report the headers:
         print('Select data columns from {:s}'.format(data_file.split('/')[-1]))
@@ -158,7 +158,7 @@ def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = F
         # the given column index by seven.
         col1_name = hlist[col1 - modelfile_skippedcols]
         print('------------------------------------------------------------------------')
-        print('\nASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
+        print('ASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
 
     else:
         # Get one column index and possibly header name for a desired magnitude:
@@ -168,14 +168,15 @@ def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = F
             col1 = header_select_col(cmd_datafile, mode, silent=silent)
 
         print('------------------------------------------------------------------------')
-        print('\nASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
+        print('ASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
 
     # with mode = 'model' in the header_select_... function, the returned column 
     # numbers will be offset by 6, since it skips the columns which are not bandpass
     # magnitudes. Here, that offset is corrected.
 
     # A given column will have already had this offset applied, so no need to do it again,
-    # i.e. don't do this if a column is given.
+    # i.e. don't do this if a column is given; this message should not show on subsequent
+    # set creations if using all_modelcmdsets().
     if mode == 'model' and given_column == None or mode == 'modeltest'and given_column == None:
         print('Applying index offset...')
         col1 += modelfile_skippedcols
