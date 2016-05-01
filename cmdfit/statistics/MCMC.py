@@ -113,7 +113,7 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
     elif mode == 'single':
         # emcee sampler parameters:
         ndim = 4
-        nwalkers = 50
+        nwalkers = 20
         nsteps = 300
        
         #  [FeH, age, primary initial mass, secondary initial mass, and Pfield]
@@ -122,31 +122,30 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
             print(model_params)
             initial_positions = model_params #[0.10, 7.5, 3.0, 0.0]
 
-            initial_walker_positions = [initial_positions for i in range(nwalkers)]
+            initial_walker_positions = []#[initial_positions + 1*np.random.randn(ndim) for i in range(nwalkers)]
             # Make the field probability star off randomly as either 0 or 1 for all walkers,
             # and if the secondary masses got randomized below zero, make them zero instead:
-            for walkerpositions in initial_walker_positions:
-                  
-                walkerpositions[0] += 1e-4*np.random.randn()
-                walkerpositions[1] += np.random.randn()
-                walkerpositions[2] += np.random.randn()
-                walkerpositions[3] += 1e-4*np.random.randn()
-
-                if walkerpositions[1] > 10.0:
-                    walkerpositions[1] = 10.0
-                if walkerpositions[1] < 5.0:
-                    walkerpositions[1] = 5.0
-                #walkerpositions[1] = 5*np.random.random() + 5.0
-                #walkerpositions[2] = 7.7*np.random.random() + 0.3
+            for i in range(nwalkers):
+                
+                initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), np.random.randn(), np.random.randn(), 1e-1*np.random.randn()]))
+                
+                if initial_walker_positions[i][1] > 10.0:
+                    initial_walker_positions[i][1] = 10.0
+                if initial_walker_positions[i][1] < 5.0:
+                    initial_walker_positions[i][1] = 5.0
                 #walkerpositions[4] = np.random.randint(2)
-                if walkerpositions[0] < -0.30:
-                    walkerpositions[0] = -0.30
-                if walkerpositions[0] > 0.30:
-                    walkerpositions[0] = 0.30
-                if walkerpositions[2] < 0.0:
-                    walkerpositions[2] = 0.3
-                if walkerpositions[3] < 0.0:
-                    walkerpositions[3] = 0.0
+                if initial_walker_positions[i][0] < -0.30:
+                    initial_walker_positions[i][0] = -0.30
+                if initial_walker_positions[i][0] > 0.30:
+                    initial_walker_positions[i][0] = 0.30
+                if initial_walker_positions[i][2] < 0.3:
+                    initial_walker_positions[i][2] = 0.3
+                if initial_walker_positions[i][2] > 8.0:
+                    initial_walker_positions[i][2] = 8.0
+                if initial_walker_positions[i][3] < 0.0:
+                    initial_walker_positions[i][3] = 0.0
+                if initial_walker_positions[i][3] > 1.0:
+                    initial_walker_positions[i][3] = 1.0
 
         else:
             initial_positions = [0.10, 7.5, 1.0, 0.5, 0.5]

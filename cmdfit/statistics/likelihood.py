@@ -92,7 +92,7 @@ def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
 
     # theta[1] is secondary mass.
     initmass = star_theta[0]
-    secondarymass = star_theta[1]
+    secondarymass = initmass * star_theta[1]
     Pfield = star_theta[2]
     #FeH = theta[2]
     #age = theta[3]

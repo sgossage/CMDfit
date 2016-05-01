@@ -367,8 +367,30 @@ class isochrone(object):
         self.kind = cmdset.kind
 
     # Plots a magnitude vs. a color for an isochrone, given a dataset and two magnitude indices:
-    def isoplotCMD(self, dataset, blue_index, red_index):
-    
+    def isoplotCMD(self, blue_index, red_index, dataset = None, magindex=None):
+
+        if magindex == None and dataset != None:
+            dataset_bluemag = dataset.magnitudes.ix[:,blue_index].values
+            dataset_redmag = dataset.magnitudes.ix[:,red_index].values
+            data_color = dataset_bluemag - dataset_redmag
+     
+            datamag_blueerr = dataset.uncertainties.ix[:,blue_index].values
+            datamag_rederr = dataset.uncertainties.ix[:,red_index].values
+            data_colorerr = np.sqrt(datamag_blueerr**2 + datamag_rederr**2)
+
+            plt.errorbar(data_color, dataset_redmag, xerr = data_colorerr, yerr = datamag_rederr, fmt='o')
+
+        elif dataset != None:
+            dataset_bluemag = dataset.magnitudes.ix[magindex,blue_index]
+            dataset_redmag = dataset.magnitudes.ix[magindex,red_index]
+            data_color = dataset_bluemag - dataset_redmag
+     
+            datamag_blueerr = dataset.uncertainties.ix[magindex,blue_index]
+            datamag_rederr = dataset.uncertainties.ix[magindex,red_index]
+            data_colorerr = np.sqrt(datamag_blueerr**2 + datamag_rederr**2)
+
+            plt.errorbar(data_color, dataset_redmag, xerr = data_colorerr, yerr = datamag_rederr, fmt='o')
+
         isomag_blue = self.magnitudes.ix[:,blue_index].values
         isomag_red = self.magnitudes.ix[:,red_index].values 
         color = isomag_blue - isomag_red
@@ -382,16 +404,6 @@ class isochrone(object):
         
         else:
             plt.plot(color, isomag_red)
-
-        dataset_bluemag = dataset.magnitudes.ix[:,blue_index].values
-        dataset_redmag = dataset.magnitudes.ix[:,red_index].values
-        data_color = dataset_bluemag - dataset_redmag
-     
-        datamag_blueerr = dataset.uncertainties.ix[:,blue_index].values
-        datamag_rederr = dataset.uncertainties.ix[:,red_index].values
-        data_colorerr = np.sqrt(datamag_blueerr**2 + datamag_rederr**2)
-
-        plt.errorbar(data_color, dataset_redmag, xerr = data_colorerr, yerr = datamag_rederr, fmt='o')
 
         plt.xlabel('{:s} - {:s}'.format(self.magnitudes.ix[:,blue_index].name, self.magnitudes.ix[:,red_index].name))
         plt.ylabel('{:s}'.format(self.magnitudes.ix[:,red_index].name))

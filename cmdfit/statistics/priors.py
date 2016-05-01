@@ -122,7 +122,8 @@ def star_lnprior(star_theta):
     """
 
     primary_mass = star_theta[0]
-    secondary_mass = star_theta[1]
+    mass_ratio = star_theta[1]
+    secondary_mass = primary_mass * mass_ratio #star_theta[1]
     #Pfield = star_theta[2]
 
     if 0.0 <= secondary_mass <= primary_mass: #and 0.0 <= Pfield <= 1.0:

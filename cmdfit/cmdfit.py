@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import corner
 from cmdfit.statistics import MCMC
+from cmdfit.processing import interp
 
 def fitall():
 
@@ -90,8 +91,10 @@ def fitsingle(mode):
     # Sort the models in ascending order of FeH:
     allmodel_cmdsets.sort(key=lambda model: model.FeH)
 
+    random_index = 20450#np.random.random_integers(len(data_cmdset.magnitudes.values))
+
     # Run MCMC with the supplied models and observed data (should make magindex selectable):
-    sampler, ndim, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex= np.random.random_integers(len(data_cmdset.magnitudes.values)))#28100)
+    sampler, ndim, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex= random_index)#28100)    
 
     fig, (ax_feh, ax_age, ax_M1, ax_M2) = plt.subplots(4)
     ax_feh.set(ylabel='[Fe/H]')
@@ -120,15 +123,23 @@ def fitsingle(mode):
     q = param_samples.quantile([0.16, 0.50, 0.84], axis=0)
     print(q)   
 
+    # Right now this stuff tries to plot the star input with the MAP isochrone found.
+    # Its not done in a great way right now, need to interpolate to be more accurate maybe.
+    MAPfeh = q['[Fe/H]'][0.50]
+    FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(MAPfeh, sortedFeH_list)
+    modelset = allmodel_cmdsets[FeHpoor_index]
+
+    isofound = data.isochrone(modelset, q['log10 Age'][0.50])
+    isofound.isoplotCMD(0, 1, data_cmdset, random_index)
+
     print(model_params)
 
-    #fig = corner.corner(samples.reshape(-1, ndim), labels=["$[Fe/H]$", "$log_10 Age$", "$Primary Mass$", "Secondary Mass"],#, "$P_field$"],
-    #                    truths=model_params)
+    fig = corner.corner(samples.reshape(-1, ndim), labels=["$[Fe/H]$", "$log_10 Age$", "$Primary Mass$", "Secondary Mass"], truths=model_params)
    
-    #sns.plt.show()
+    sns.plt.show()
 
     jkde = sns.jointplot(x='[Fe/H]', y='log10 Age', data=param_samples, kind='kde')
 
     sns.plt.show() 
 
-    return param_samples
+    return param_samples, sampler
