@@ -22,7 +22,8 @@ def ABtoVega(magnitude_array, band_column, silent = False):
 
     modelfile_skippedcols = 7
 
-    magnitude_array = magnitude_array - ABtoVega_corrections[band_column - modelfile_skippedcols] + distance_modulus 
+    #magnitude_array = magnitude_array - ABtoVega_corrections[band_column - modelfile_skippedcols] + distance_modulus 
+    magnitude_array = np.array(magnitude_array) + distance_modulus
 
     return magnitude_array
 

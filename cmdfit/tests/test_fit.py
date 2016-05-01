@@ -32,5 +32,6 @@ class TestABCorrections(TestCase):
         corr2MASSJ = 0.8940495232
         HYADESdmod = 3.33
 
-        self.assertEqual(all(correctedmags == modelvalues - corr2MASSJ + HYADESdmod), True)      
+        # Changed this because new model files do not require AB correction, only distance modulus:
+        self.assertEqual(all(correctedmags == modelvalues + HYADESdmod), True)      
     

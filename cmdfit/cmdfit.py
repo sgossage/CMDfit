@@ -4,6 +4,7 @@ import emcee
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import corner
 from cmdfit.statistics import MCMC
 
 def fitall():
@@ -64,14 +65,16 @@ def fitall():
 
     return param_samples
 
-def fitsingle():
+def fitsingle(mode):
 
-    # load an observed cmd:
-    #data_cmdset = data.cmdset('data')
+    if mode == 'data':
+        # load an observed cmd:
+        data_cmdset = data.cmdset('data')
     
-    # For testing I will load a magnitude from the models; I know the age/mass, etc. for this star so I can check that
-    # answers are correct...
-    data_cmdset = data.cmdset('modeltest')    
+    if mode == 'modeltest':
+        # For testing I will load a magnitude from the models; I know the age/mass, etc. for this star so I can check that
+        # answers are correct...
+        data_cmdset = data.cmdset('modeltest')    
 
     # Load a set of model cmds; the user will select which directory to load from:
     allmodel_cmdsets = data.all_modelcmdsets()
@@ -88,7 +91,7 @@ def fitsingle():
     allmodel_cmdsets.sort(key=lambda model: model.FeH)
 
     # Run MCMC with the supplied models and observed data (should make magindex selectable):
-    sampler, ndim, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex=np.random.random_integers(len(data_cmdset.magnitudes.values)))#28100)
+    sampler, ndim, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex= np.random.random_integers(len(data_cmdset.magnitudes.values)))#28100)
 
     fig, (ax_feh, ax_age, ax_M1, ax_M2) = plt.subplots(4)
     ax_feh.set(ylabel='[Fe/H]')
@@ -96,7 +99,12 @@ def fitsingle():
     ax_M1.set(ylabel='Primary Mass [Msun]')
     ax_M2.set(ylabel='Secondary Mass [Msun]')
 
-    for i in range(10):
+    if nwalkers >=10:
+        N = 10
+    else:
+        N = nwalkers
+
+    for i in range(N):
         sns.tsplot(sampler.chain[i,:,0], ax=ax_feh)
         sns.tsplot(sampler.chain[i,:,1], ax=ax_age)
         sns.tsplot(sampler.chain[i,:,2], ax=ax_M1)
@@ -108,9 +116,16 @@ def fitsingle():
     samples = sampler.chain[:,burnin_cut:,:]
     traces = samples.reshape(-1, ndim).T
 
-    param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3], 'Pfield':traces[4]})
+    param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3]})#, 'Pfield':traces[4]})
     q = param_samples.quantile([0.16, 0.50, 0.84], axis=0)
     print(q)   
+
+    print(model_params)
+
+    #fig = corner.corner(samples.reshape(-1, ndim), labels=["$[Fe/H]$", "$log_10 Age$", "$Primary Mass$", "Secondary Mass"],#, "$P_field$"],
+    #                    truths=model_params)
+   
+    #sns.plt.show()
 
     jkde = sns.jointplot(x='[Fe/H]', y='log10 Age', data=param_samples, kind='kde')
 

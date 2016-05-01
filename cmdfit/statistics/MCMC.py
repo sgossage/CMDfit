@@ -68,7 +68,7 @@ def lnposterior(theta, data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_r
 
     # If the sampler picked values out of the valid ranges, assign zero probability
     # for this paritcular sampling:
-    if not np.isfinite(lnp) or not np.isfinite(lnlikelihood):
+    if not np.isfinite(lnp):
         return -np.inf
 
     # Or else, return the full posterior. The allband_lnLikelihood() function handles the sampling
@@ -112,28 +112,66 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
 
     elif mode == 'single':
         # emcee sampler parameters:
-        ndim = 5
-        nwalkers = 16
-        nsteps = 400
+        ndim = 4
+        nwalkers = 50
+        nsteps = 300
        
         #  [FeH, age, primary initial mass, secondary initial mass, and Pfield]
         if data_cmdset.kind == 'modeltest':
-            initial_positions = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.0, 0.0]
-            print(initial_positions)
-            initial_positions = [0.10, 7.5, 1.0, 0.5, 0.5]
+            model_params = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.0]
+            print(model_params)
+            initial_positions = model_params #[0.10, 7.5, 3.0, 0.0]
+
+            initial_walker_positions = [initial_positions for i in range(nwalkers)]
+            # Make the field probability star off randomly as either 0 or 1 for all walkers,
+            # and if the secondary masses got randomized below zero, make them zero instead:
+            for walkerpositions in initial_walker_positions:
+                  
+                walkerpositions[0] += 1e-4*np.random.randn()
+                walkerpositions[1] += np.random.randn()
+                walkerpositions[2] += np.random.randn()
+                walkerpositions[3] += 1e-4*np.random.randn()
+
+                if walkerpositions[1] > 10.0:
+                    walkerpositions[1] = 10.0
+                if walkerpositions[1] < 5.0:
+                    walkerpositions[1] = 5.0
+                #walkerpositions[1] = 5*np.random.random() + 5.0
+                #walkerpositions[2] = 7.7*np.random.random() + 0.3
+                #walkerpositions[4] = np.random.randint(2)
+                if walkerpositions[0] < -0.30:
+                    walkerpositions[0] = -0.30
+                if walkerpositions[0] > 0.30:
+                    walkerpositions[0] = 0.30
+                if walkerpositions[2] < 0.0:
+                    walkerpositions[2] = 0.3
+                if walkerpositions[3] < 0.0:
+                    walkerpositions[3] = 0.0
 
         else:
             initial_positions = [0.10, 7.5, 1.0, 0.5, 0.5]
 
-        # Set up the walkers in a Gaussian ball around the initial positions:
-        initial_positions = [initial_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+            # Set up the walkers in a Gaussian ball around the initial positions:
+            initial_walker_positions = [initial_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+            # Make the field probability star off randomly as either 0 or 1 for all walkers,
+            # and if the secondary masses got randomized below zero, make them zero instead:
+            for walkerpositions in initial_walker_positions:
+            
+                walkerpositions[1] = 5*np.random.random() + 5.0
+                walkerpositions[2] = 7.7*np.random.random() + 0.3
+                #walkerpositions[4] = np.random.randint(2)
+
+                if walkerpositions[3] < 0.0:
+                    walkerpositions[3] = 0.0
 
         # Assign the sampler object using parameters from above:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnposterior, args=(data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_range, mode, magindex))
-   
+        
+        # Thinking about taking param values here and using them to form field star mass priors....                
+
         # Run the sampler for the specified number of steps:
         print('\nRunning MCMC...\n')
-        sampler.run_mcmc(initial_positions, nsteps)
+        sampler.run_mcmc(initial_walker_positions, nsteps)
         print('DONE\n')
 
-    return sampler, ndim, nwalkers, nsteps
+    return sampler, ndim, nwalkers, nsteps, model_params

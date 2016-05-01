@@ -104,7 +104,7 @@ def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
     FeH_min = np.amin(FeH_list)
     
     # If the given metallicity was not found, but it is within valid range:
-    if not FeH_index and FeH > FeH_min and FeH < FeH_max:
+    if (FeH not in FeH_list) and (FeH_min <= FeH <= FeH_max):
         # Find cmdsets with closest FeH:
         FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(FeH, FeH_list)
 
@@ -124,15 +124,14 @@ def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
             model_mag = np.inf
             model_mag2 = np.inf
 
-    # Or else if the metallicity does exit...
-    else:
-        #...and is within valid range, get the magnitude:
-        if FeH > FeH_min and FeH < FeH_max:
+    # Or else if the metallicity does exit
+    elif FeH_min <= FeH <= FeH_max:
             model_mag = allmodel_cmdsets[FeH_index].getmag(age, initmass, data_bandindex)
             model_mag2 = allmodel_cmdsets[FeH_index].getmag(age, secondarymass, data_bandindex)
-        # Or else if not in range, make probability zero:
-        else:
-            return -np.inf
+
+    # Or else if not in range, make probability zero:
+    else:
+        return -np.inf
 
     if np.isfinite(model_mag) and np.isfinite(model_mag2):
         model_mag = -2.5 * np.log10(10**(-model_mag/2.5) + 10**(-model_mag2 / 2.5))
@@ -273,19 +272,11 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
        
             lnLikelihood.append(lnprob)
 
-            # print('DONE')
             # Right now this break exists to prevent crazy run times during testing:
             break
 
         # lnLikelihood has all of the likelihood calculations for every magnitude in the current band. Sum the loglikilihoods to get the full log-likelihood for the band:
         full_lnLikelihood = np.sum(np.array(lnLikelihood))
-
-        #fig, (ax_m1, ax_m2) = plt.subplots(2)
-        #for i in range(nwalkers):
-        #    sns.tsplot(sampler.chain[i,:,0], ax=ax_m1)
-        #    sns.tsplot(sampler.chain[i,:,1], ax=ax_m2)
-    
-        #sns.plt.show()
 
     elif mode == 'single':
  
@@ -294,11 +285,15 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         age = theta[1]
         M1 = theta[2]
         M2 = theta[3]
-        Pfield = theta[4]
+        Pfield = 0.0 #theta[4]
         star_theta = (M1, M2, Pfield)
+
+        # For mode == 'single', pick out ONLY ONE magnitude and uncertainty to
+        # compare to the model set within the current band:
         band_mag = band_magnitudes[magindex]
         band_uncert = band_uncertainties[magindex]
 
+        # Compare this single magnitude to all models to figure out which model most likely matches, and thus determin the data's parameters:
         full_lnLikelihood = stardata_lnprobability(star_theta, band_mag, band_uncert, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age)
 
     else:

@@ -86,7 +86,7 @@ def primary_mass_lnprior(primary_mass, calc_log=True):
     # This IMF is ~a half Gaussian distribution which peaks at around 0.1 in log stellar mass.
     # (See Table 7 in Miller & Scalo 1975.)
     
-    primaryM_prior = 106.0 * np.exp( -0.5 * ((np.log10(primary_mass) + 1.02) / 0.677)**2.0 )
+    primaryM_prior = 1.3 * np.exp( -0.5 * ((np.log10(primary_mass) + 1.02) / 0.677)**2.0 )
 
     if calc_log:
         return np.log(primaryM_prior)
@@ -123,9 +123,9 @@ def star_lnprior(star_theta):
 
     primary_mass = star_theta[0]
     secondary_mass = star_theta[1]
-    Pfield = star_theta[2]
+    #Pfield = star_theta[2]
 
-    if 0.0 <= secondary_mass <= primary_mass and 0.0 <= Pfield <= 1.0:
+    if 0.0 <= secondary_mass <= primary_mass: #and 0.0 <= Pfield <= 1.0:
 
         return 0.0 + primary_mass_lnprior(primary_mass)
 
