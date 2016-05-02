@@ -5,11 +5,12 @@ import os
 import matplotlib.pyplot as plt
 from cmdfit.processing import columnread as cread
 from cmdfit.processing import userinteract as user
-from cmdfit.processing import interp
+from cmdfit.processing import interp as interp
+from . import isochrone as iso
 
 class cmdset(object):
     
-    def __init__(self, kind = 'data', data_file = None, usecol = None):
+    def __init__(self, kind = 'data', agecut = 0, data_file = None, usecol = None):
 
         def loadData(readmode='data', data_file = None, usecol = None):
 
@@ -105,7 +106,7 @@ class cmdset(object):
                         # In the future maybe give some options for users to select how they want to 
                         # generate uncertainties if the data doesn't supply them.
                         # This nominal value is based on my reading of Jorgensen & Lindegren 2005.
-                        uncertCol = [0.1] * len(dataCol)
+                        uncertCol = [0.05] * len(dataCol)
                         uncertName = dataName + 'err'
                     
                     # Store uncertainties in their own matrix:
@@ -176,17 +177,34 @@ class cmdset(object):
             self.magnitudes, self.uncertainties = loadData(readmode = 'data', data_file=data_file, usecol=usecol)
         
         elif kind == 'model':
-            self.fullframe = loadData(readmode = 'model', data_file=data_file, usecol=usecol)
-            self.ages = self.fullframe.ix[:, 'log10 age']
-            self.initmasses = self.fullframe.ix[:, 'Initial Mass']
-            self.magnitudes = self.fullframe.ix[:, 2:]
-            # Also load info on other params...
+            if 5.0 <= agecut <= 10.0:
+                self.fullframe = loadData(readmode = 'model', data_file=data_file, usecol=usecol)
+                indices = np.where(self.fullframe['log10 age'].values >= agecut)[0]
+                self.cutframe = self.fullframe.ix[indices,:].reset_index(drop=True)
+                self.ages = self.cutframe.ix[:, 'log10 age']
+                self.initmasses = self.cutframe.ix[:, 'Initial Mass']
+                self.magnitudes = self.cutframe.ix[:, 2:]
+            else:
+                self.fullframe = loadData(readmode = 'model', data_file=data_file, usecol=usecol)
+                self.ages = self.fullframe.ix[:, 'log10 age']
+                self.initmasses = self.fullframe.ix[:, 'Initial Mass']
+                self.magnitudes = self.fullframe.ix[:, 2:]
+                # Also load info on other params...
 
         elif kind == 'modeltest':
-            self.fullframe, self.uncertainties = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
-            self.ages = self.fullframe.ix[:, 'log10 age']
-            self.initmasses = self.fullframe.ix[:, 'Initial Mass']
-            self.magnitudes = self.fullframe.ix[:, 2:]
+            if 5.0 <= agecut <= 10.0:
+                self.fullframe, self.uncertainties = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
+                indices = np.where(self.fullframe['log10 age'].values >= agecut)[0]
+                self.cutframe = self.fullframe.ix[indices,:].reset_index(drop=True)
+                self.ages = self.cutframe.ix[:, 'log10 age']
+                self.initmasses = self.cutframe.ix[:, 'Initial Mass']
+                self.magnitudes = self.cutframe.ix[:, 2:]
+                self.uncertainties = self.uncertainties.ix[indices,:]
+            else:
+                self.fullframe, self.uncertainties = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
+                self.ages = self.fullframe.ix[:, 'log10 age']
+                self.initmasses = self.fullframe.ix[:, 'Initial Mass']
+                self.magnitudes = self.fullframe.ix[:, 2:]
 
         self.kind = kind
      
@@ -223,33 +241,8 @@ class cmdset(object):
 
             # If the age does not exist, but it is within range of valid values:
             if age not in age_array:
-                # Determine the closest ages via interpolation:
-                younger_Age, older_Age = interp.find_closestAges(age, age_array)            
 
-                # Pick out their isochrones:
-                younger_iso = isochrone(self, younger_Age)
-                older_iso = isochrone(self, older_Age)
-               
-                # Determine magnitudes and interpolate if necessary & possible:
-                young_mag = younger_iso.isogetmag(initmass, band)
-                older_mag = older_iso.isogetmag(initmass, band)
-
-                # If we were able to interpolate masses in both isochrones, interpolate between isochrone ages:
-                if np.isfinite(young_mag) and np.isfinite(older_mag):
-                    mag = interp.linear_interp(age, (younger_Age, young_mag), (older_Age, older_mag))
-
-                # Or else if magnitude retrieval failed (invalid mass) in at least one isochrone:
-                else: 
-                    # Use either the younger or older magnitude, if possible:
-                    if np.isfinite(young_mag):
-                        mag = young_mag
-                    elif np.isfinite(older_mag):
-                        mag = older_mag
-
-                    # If interpolation failed in both cases, return infinity:
-                    else:
-                        # This signals 0 probability.
-                        mag = np.inf   
+                mag = iso.isointerpmag(self, initmass, age, age_array, band)                
 
                 # Return the result:
                 return mag
@@ -258,15 +251,105 @@ class cmdset(object):
             # If the age was found, just return the corresponding magnitude (will be inf for 
             # invalid masses):
             else:
-                iso = isochrone(self, age)
-                return iso.isogetmag(self, initmass, band)
+                isoch = iso.isochrone(self, age)
+                return isoch.isogetmag(self, initmass, band)
 
         # Or else if the proposed age is invalid, return an infinite magnitude to
         # trigger 0 probability for this proposition:
         else:
             return np.inf
+
+    # Confines a datasets magnitudes to a certain range:
+    def datacutmags(self, lowerlim, upperlim):
+
+
+        for i in range(self.numbands):
+            l_indices_tocut = np.where(self.magnitudes.ix[:,i].values < lowerlim)[0]
+            u_indices_tocut = np.where(self.magnitudes.ix[:,i].values > upperlim)[0]
+            
+            if u_indices_tocut.size == 0:
+                pass
+            else:
+                self.magnitudes = self.magnitudes.drop(self.magnitudes.index[u_indices_tocut])
+                self.uncertainties = self.uncertainties.drop(self.uncertainties.index[u_indices_tocut])
+            
+            if l_indices_tocut.size == 0:
+                pass
+            else:
+                self.magnitudes = self.magnitudes.drop(self.magnitudes.index[l_indices_tocut])
+                self.uncertainties = self.uncertainties.drop(self.uncertainties.index[l_indices_tocut])
+
+
+        self.magnitudes = self.magnitudes.reset_index(drop=True)
+        self.uncertainties = self.uncertainties.reset_index(drop=True)
+
+        return
+
+# For getting magnitudes across cmdsets:
+def getcmdsetsmag(allmodel_cmdsets, age, initmass, FeH, FeH_list, data_bandindex, secondarymass = None):
+
+    # Here I should check on interpolating between metallicities; if necessary, getmag from two nearest cmdsets and interpolate a new magnitude at the given
+    # metallicity if the given metallicity does not exist. Check an input list of available metallicities:
+    FeH_max = np.amax(FeH_list)
+    FeH_min = np.amin(FeH_list)
+
+    # If the given metallicity was not found, but it is within valid range:
+    if (FeH not in FeH_list) and (FeH_min <= FeH <= FeH_max):
+        # Find cmdsets with closest FeH:
+        FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(FeH, FeH_list)
+
+        # Calculate model magnitudes from each:
+        FeHrich_mag = allmodel_cmdsets[FeHrich_index].getmag(age, initmass, data_bandindex)
+        FeHpoor_mag = allmodel_cmdsets[FeHpoor_index].getmag(age, initmass, data_bandindex)
+
+        if secondarymass != None:
+            FeHrich_mag2 = allmodel_cmdsets[FeHrich_index].getmag(age, secondarymass, data_bandindex)
+            FeHpoor_mag2 = allmodel_cmdsets[FeHpoor_index].getmag(age, secondarymass, data_bandindex)
+
+        # If both interpolated magnitudes were produced from values within valid ranges of mass and age:
+            if np.isfinite(FeHpoor_mag) and np.isfinite(FeHrich_mag) and np.isfinite(FeHpoor_mag2) and np.isfinite(FeHrich_mag2):
+                # Finally interpolate using the closest FeHs and their magnitudes to get the magnitude at the given FeH:
+                model_mag = interp.linear_interp(FeH, (FeHpoor, FeHpoor_mag), (FeHrich, FeHrich_mag))
+                model_mag2 = interp.linear_interp(FeH, (FeHpoor, FeHpoor_mag2), (FeHrich, FeHrich_mag2))
+                # Combine magnitudes:
+                model_mag = -2.5 * np.log10(10**(-model_mag/2.5) + 10**(-model_mag2/2.5))
+            
+            else:
+                model_mag = np.inf
+
+        # If not using a secondary initial mass:
+        elif np.isfinite(FeHpoor_mag) and np.isfinite(FeHrich_mag):
+            model_mag = interp.linear_interp(FeH, (FeHpoor, FeHpoor_mag), (FeHrich, FeHrich_mag))
+        
+        # Or else if FeH interpolation could not be done, either because of invalid mass or age,
+        # can't interpolate between inf, so make the probability 0:
+        else:
+            model_mag = np.inf
+
+        return model_mag
+
+    # Or else if the metallicity already exists:
+    elif FeH_min <= FeH <= FeH_max:
+
+        # Get the right index:
+        FeH_index = np.where(FeH_list == FeH)[0]
+        # Get the magnitude:
+        model_mag = allmodel_cmdsets[FeH_index].getmag(age, initmass, data_bandindex)
+        
+        # If necessary, get the secondary mass' magnitude too:
+        if secondarymass != None: 
+            model_mag2 = allmodel_cmdsets[FeH_index].getmag(age, secondarymass, data_bandindex)
+            # Combine magnitudes:
+            model_mag = -2.5 * np.log10(10**(-model_mag/2.5) + 10**(-model_mag2/2.5))
+
+        return model_mag
+
+    # Or else if FeH is not in the valid range, make probability zero:
+    else:
+        return np.inf
+
                  
-def all_modelcmdsets():
+def all_modelcmdsets(agecut = 0):
 
     # Go to a desired directory and get all of the .cmd files there:
     selected_run_path = select_pathtofile('model')
@@ -287,7 +370,7 @@ def all_modelcmdsets():
         print('\n======================================================================')
         print('Creating model cmdset #{:d} for '.format(i) + data_files[i].split('/')[-1] + '...')
 
-        model_cmdsets.append(cmdset('model', data_files[i], usedcolumns))
+        model_cmdsets.append(cmdset('model', agecut, data_files[i], usedcolumns))
 
         # On subsequent loops, use the user selected columns of the first model cmdset:
         usedcolumns = model_cmdsets[i].usedcolumns
@@ -328,138 +411,4 @@ def select_pathtofile(mode):
     else:                                             
         return "ERROR: Improper mode input for select_pathtofile(mode). Input should be either: mode = \'data\' or mode = \'model\'."
         
-# WIP
-class isochrone(object):
-
-    def __init__(self, cmdset, age):
         
-        # Pick out the relevent age block from the given cmdset:
-        age_array = cmdset.ages.values
-        age_max = np.amax(age_array)
-        age_min = np.amin(age_array)
-
-        # Check if the proposed age is within the valid range:
-        if (age_min <= age <= age_max) and (age not in age_array):
-         
-            isochrone_indexlist = np.where(age_array == age)[0]
-         
-            # If the age does not exist, but it is within range of valid values:
-            if not isochrone_indexlist:
-                # Determine the closest ages:
-                younger_Age, older_Age = interp.find_closestAges(age, age_array)
-                
-                # For now just default to the younger age found. Maybe later make this selectable:
-                print("log10 age = {:f} was found.".format(younger_Age))
-                age = younger_Age
-
-        elif not age_min <= age <= age_max:
-            print("isochrone init ERROR: Desired age outside of max/min range of {:.2f} to {:.2f} log10 age.".format(age_min, age_max))
-            return
-         
-        # Now we have an age to work with; so get all models within its block:
-        isochrone_indexlist = np.where(age_array == age)[0]
-        self.magnitudes = cmdset.magnitudes.ix[isochrone_indexlist,:]
-        if cmdset.kind == 'modeltest':
-            self.uncertainties = cmdset.uncertainties.ix[isochrone_indexlist,:]
-
-        self.initmasses = cmdset.initmasses.ix[isochrone_indexlist]
-        self.age = age
-        self.kind = cmdset.kind
-
-    # Plots a magnitude vs. a color for an isochrone, given a dataset and two magnitude indices:
-    def isoplotCMD(self, blue_index, red_index, dataset = None, magindex=None):
-
-        if magindex == None and dataset != None:
-            dataset_bluemag = dataset.magnitudes.ix[:,blue_index].values
-            dataset_redmag = dataset.magnitudes.ix[:,red_index].values
-            data_color = dataset_bluemag - dataset_redmag
-     
-            datamag_blueerr = dataset.uncertainties.ix[:,blue_index].values
-            datamag_rederr = dataset.uncertainties.ix[:,red_index].values
-            data_colorerr = np.sqrt(datamag_blueerr**2 + datamag_rederr**2)
-
-            plt.errorbar(data_color, dataset_redmag, xerr = data_colorerr, yerr = datamag_rederr, fmt='o')
-
-        elif dataset != None:
-            dataset_bluemag = dataset.magnitudes.ix[magindex,blue_index]
-            dataset_redmag = dataset.magnitudes.ix[magindex,red_index]
-            data_color = dataset_bluemag - dataset_redmag
-     
-            datamag_blueerr = dataset.uncertainties.ix[magindex,blue_index]
-            datamag_rederr = dataset.uncertainties.ix[magindex,red_index]
-            data_colorerr = np.sqrt(datamag_blueerr**2 + datamag_rederr**2)
-
-            plt.errorbar(data_color, dataset_redmag, xerr = data_colorerr, yerr = datamag_rederr, fmt='o')
-
-        isomag_blue = self.magnitudes.ix[:,blue_index].values
-        isomag_red = self.magnitudes.ix[:,red_index].values 
-        color = isomag_blue - isomag_red
-        
-        if self.kind == 'modeltest':
-            isomag_blueerr = self.uncertainties.ix[:,blue_index].values
-            isomag_rederr = self.uncertainties.ix[:,red_index].values
-            colorerr = np.sqrt(isomag_blueerr**2 + isomag_rederr**2)
-            
-            plt.errorbar(color, isomag_red, xerr = colorerr, yerr = isomag_rederr,fmt='o')
-        
-        else:
-            plt.plot(color, isomag_red)
-
-        plt.xlabel('{:s} - {:s}'.format(self.magnitudes.ix[:,blue_index].name, self.magnitudes.ix[:,red_index].name))
-        plt.ylabel('{:s}'.format(self.magnitudes.ix[:,red_index].name))
-
-        plt.gca().invert_yaxis()
-
-        plt.show()
-
-        return
-
-    # Given an isochrone and proposed initial mass, get the magnitude of the star with the proposed mass:
-    def isogetmag(self, initmass, band):
-
-        # Magnitudes and masses of models in the isochrone:
-        mag_array = self.magnitudes.values[:, band]
-        mass_array = self.initmasses.values
-        max_mass = np.amax(mass_array)
-        min_mass = np.amin(mass_array)
-
-        # Check if the given mass is within bounds of the predicted masses for the isochrones found:
-        # (If within bounds, get the masses from the isochrone.)
-        if min_mass < initmass < max_mass:
-
-            mass_index = np.where(mass_array == initmass)[0]
-
-            # If the mass does not exist, need to find adjacent masses and prepare for interpolation.
-            if not mass_index:
-                # Find the closest masses in this isochrone:
-                bigMass, lilMass, bigMass_index, lilMass_index = interp.find_closestMasses(initmass, mass_array)
-
-                # Get corresponding magnitudes:
-                bigmag_val = mag_array[bigMass_index]
-                lilmag_val = mag_array[lilMass_index]
-                massinterp = True
-
-            # Or else the mass was found:
-            else:
-                mass_val = mass_array[older_mass_index]
-                mag_val = mag_array[older_mass_index]
-                result = (mag_val, mass_val)
-                massinterp = False
-
-        # If the given mass is outside of the bounds of the masses available in the isochrone, return infinity. 
-        # This lets the code know that the mass was invalid for the isochrone and could not be interpolated:
-        else:
-            mag_val = np.inf
-            massinterp = False
-
-        # If we need to interpolate between masses to get a magnitude closer to what would come from
-        # the proposed mass, then do so:
-        if massinterp:
-
-            interpmag = interp.linear_interp(initmass, (lilMass, lilmag_val), (bigMass, bigmag_val))
-            mag_val = interpmag
-  
-        # This should be a number, and if it is infinite then it means a magnitude could not be found;
-        # in this case, 0 probability should result, or else the magnitude should not be used.
-        return mag_val
-

@@ -7,8 +7,9 @@ import seaborn as sns
 import corner
 from cmdfit.statistics import MCMC
 from cmdfit.processing import interp
+from . import isochrone as iso
 
-def fitall():
+def fitall(mode = 'data'):
 
     """
     This function determines the likelihood of the data being produced by a
@@ -23,8 +24,12 @@ def fitall():
     WIP...
     
     """
-    # load an observed cmd:
-    data_cmdset = data.cmdset('data')
+    if mode == 'data':
+        # load an observed cmd:
+        data_cmdset = data.cmdset('data')
+    
+    # Confine data's magnitude range to lie within isochrone's range for now...
+    data_cmdset.datacutmags(1, 10)
     
     # Load a set of model cmds; the user will select which directory to load from:
     allmodel_cmdsets = data.all_modelcmdsets()
@@ -34,21 +39,17 @@ def fitall():
     FeH_list = [cmdset.FeH for cmdset in allmodel_cmdsets]
     sortedFeH_list = np.array(sorted(FeH_list))    
 
-    temporary_cmdsets = [None]*len(allmodel_cmdsets)
+    allmodel_cmdsets.sort(key=lambda model: model.FeH)
 
-    for i in range(len(allmodel_cmdsets)):
-        temporary_cmdsets[np.where(sortedFeH_list == allmodel_cmdsets[i].FeH)[0]] = allmodel_cmdsets[i] 
-
-    allmodel_cmdsets = temporary_cmdsets
-
+    ndim = 2
     # Run MCMC with the supplied models and observed data:
-    sampler, ndim, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list)
+    sampler, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode = 'all', ndim=ndim)
 
     fig, (ax_feh, ax_age) = plt.subplots(2)
     ax_feh.set(ylabel='[Fe/H]')
     ax_age.set(ylabel='log10 Age')
 
-    for i in range(4):
+    for i in range(ndim):
         sns.tsplot(sampler.chain[i,:,0], ax=ax_feh)
         sns.tsplot(sampler.chain[i,:,1], ax=ax_age)
     
@@ -66,7 +67,7 @@ def fitall():
 
     return param_samples
 
-def fitsingle(mode):
+def fitsingle(mode, ndim = 3):
 
     if mode == 'data':
         # load an observed cmd:
@@ -78,7 +79,7 @@ def fitsingle(mode):
         data_cmdset = data.cmdset('modeltest')    
 
     # Load a set of model cmds; the user will select which directory to load from:
-    allmodel_cmdsets = data.all_modelcmdsets()
+    allmodel_cmdsets = data.all_modelcmdsets(agecut = 8.0)
     print('\nMODELS LOADED...')
 
     # Arranging cmds in ascending order according to metallicity; this is necesary
@@ -94,13 +95,20 @@ def fitsingle(mode):
     random_index = 20450#np.random.random_integers(len(data_cmdset.magnitudes.values))
 
     # Run MCMC with the supplied models and observed data (should make magindex selectable):
-    sampler, ndim, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex= random_index)#28100)    
+    sampler, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex= random_index,ndim= ndim) #28100)    
 
-    fig, (ax_feh, ax_age, ax_M1, ax_M2) = plt.subplots(4)
-    ax_feh.set(ylabel='[Fe/H]')
-    ax_age.set(ylabel='log10 Age')
-    ax_M1.set(ylabel='Primary Mass [Msun]')
-    ax_M2.set(ylabel='Secondary Mass [Msun]')
+    if ndim == 3:
+        fig, (ax_feh, ax_age, ax_M1) = plt.subplots(ndim)
+        ax_feh.set(ylabel='[Fe/H]')
+        ax_age.set(ylabel='log10 Age')
+        ax_M1.set(ylabel='Primary Mass [Msun]')
+
+    if ndim == 4:
+        fig, (ax_feh, ax_age, ax_M1, ax_M2) = plt.subplots(ndim)
+        ax_feh.set(ylabel='[Fe/H]')
+        ax_age.set(ylabel='log10 Age')
+        ax_M1.set(ylabel='Primary Mass [Msun]')
+        ax_M2.set(ylabel='Secondary Mass [Msun]')
 
     if nwalkers >=10:
         N = 10
@@ -111,7 +119,8 @@ def fitsingle(mode):
         sns.tsplot(sampler.chain[i,:,0], ax=ax_feh)
         sns.tsplot(sampler.chain[i,:,1], ax=ax_age)
         sns.tsplot(sampler.chain[i,:,2], ax=ax_M1)
-        sns.tsplot(sampler.chain[i,:,3], ax=ax_M2)
+        if ndim >= 4:
+            sns.tsplot(sampler.chain[i,:,3], ax=ax_M2)
 
     sns.plt.show()
     burnin_cut = eval(input("Enter an integer for where to cut off the burn-in period: "))    
@@ -119,7 +128,13 @@ def fitsingle(mode):
     samples = sampler.chain[:,burnin_cut:,:]
     traces = samples.reshape(-1, ndim).T
 
-    param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3]})#, 'Pfield':traces[4]})
+    if ndim == 3:
+        param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2]})
+    if ndim == 4:
+        param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3]})
+    if ndim == 5:
+        param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3], 'Pfield':traces[4]})
+    
     q = param_samples.quantile([0.16, 0.50, 0.84], axis=0)
     print(q)   
 
@@ -129,12 +144,29 @@ def fitsingle(mode):
     FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(MAPfeh, sortedFeH_list)
     modelset = allmodel_cmdsets[FeHpoor_index]
 
-    isofound = data.isochrone(modelset, q['log10 Age'][0.50])
+    isofound = iso.isochrone(modelset, q['log10 Age'][0.50])
+    foundstar_mags = [isofound.isogetmag(q['Primary Mass'][0.50], i) for i in range(modelset.numbands)]
+
+    if ndim == 4:
+        foundstar2_mags = [isofound.isogetmag(q['Secondary Mass'][0.50], i) for i in range(modelset.numbands)]
+        fullmag = [-2.5 * np.log10(10**(-foundstar_mags[i]/2.5) + 10**(-foundstar2_mags[i]/2.5)) for i in range(modelset.numbands)]
+        if np.isfinite(fullmag[0]) and np.isfinite(fullmag[1]):
+            plt.errorbar(foundstar2_mags[0] - foundstar2_mags[1], foundstar2_mags[1], color = 'b', fmt = 'o')
+            plt.errorbar(fullmag[0] - fullmag[1], fullmag[1], color='k', fmt='o')
+        else:
+            print("The magnitudes found for the secondary star: {}.".format(fullmag))
+
+    plt.errorbar(foundstar_mags[0] - foundstar_mags[1], foundstar_mags[1], color='r', fmt='o')
     isofound.isoplotCMD(0, 1, data_cmdset, random_index)
 
     print(model_params)
 
-    fig = corner.corner(samples.reshape(-1, ndim), labels=["$[Fe/H]$", "$log_10 Age$", "$Primary Mass$", "Secondary Mass"], truths=model_params)
+    if ndim == 3:
+        fig = corner.corner(samples.reshape(-1, ndim), labels=["$[Fe/H]$", "$log_{10} Age$", "$M_1$"], truths=model_params)
+    if ndim == 4:
+        fig = corner.corner(samples.reshape(-1, ndim), labels=["$[Fe/H]$", "$log_{10} Age$", "$M_1$", "$M_2$"], truths=model_params)
+    if ndim == 5:
+        fig = corner.corner(samples.reshape(-1, ndim), labels=["$[Fe/H]$", "$log_{10} Age$", "$M_1$", "$M_2$"," $P_{field}$"], truths=model_params)
    
     sns.plt.show()
 

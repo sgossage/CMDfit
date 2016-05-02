@@ -5,9 +5,10 @@ import cmdfit.processing.interp as interp
 import matplotlib.pyplot as plt
 import seaborn as sns
 from . import priors
+import cmdfit.data as data
 
 # Calculates the likelihood of a single star, i.e. a single magnitude, given the set of parameters theta.
-def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdsets, FeH_list, data_mag_range, FeH, age, calc_log = False):
+def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdsets, FeH_list, data_mag_range, FeH, age, calc_log = True):
 
     """
       The form used here is based on the likelihood function used by van Dyk et al. 2009. This function generates a model 
@@ -90,56 +91,22 @@ def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
 
     """
 
-    # theta[1] is secondary mass.
-    initmass = star_theta[0]
-    secondarymass = initmass * star_theta[1]
-    Pfield = star_theta[2]
-    #FeH = theta[2]
-    #age = theta[3]
+    if len(star_theta) == 2:
+        initmass = star_theta[0]
+        Pfield=star_theta[1]
+        secondarymass = None
+    elif len(star_theta) == 3:
+        initmass = star_theta[0]
+        secondarymass = star_theta[1]
+        Pfield = star_theta[2]
 
-    # Here I should check on interpolating between metallicities; if necessary, getmag from two nearest cmdsets and interpolate a new magnitude at the given
-    # metallicity if the given metallicity does not exist. Check an input list of available metallicities:
-    FeH_index = np.where(FeH_list == FeH)[0]
-    FeH_max = np.amax(FeH_list)
-    FeH_min = np.amin(FeH_list)
-    
-    # If the given metallicity was not found, but it is within valid range:
-    if (FeH not in FeH_list) and (FeH_min <= FeH <= FeH_max):
-        # Find cmdsets with closest FeH:
-        FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(FeH, FeH_list)
+    model_mag = data.getcmdsetsmag(allmodel_cmdsets, age, initmass, FeH, FeH_list, data_bandindex, secondarymass = secondarymass)  
 
-        # Calculate model magnitudes from each:
-        FeHrich_mag = allmodel_cmdsets[FeHrich_index].getmag(age, initmass, data_bandindex)
-        FeHpoor_mag = allmodel_cmdsets[FeHpoor_index].getmag(age, initmass, data_bandindex)
-        #Secondary mass:
-        FeHrich_mag2 = allmodel_cmdsets[FeHrich_index].getmag(age, secondarymass, data_bandindex)
-        FeHpoor_mag2 = allmodel_cmdsets[FeHpoor_index].getmag(age, secondarymass, data_bandindex)
-
-        # If both interpolated magnitudes were produced from values within valid ranges of mass and age:
-        if np.isfinite(FeHpoor_mag) and np.isfinite(FeHrich_mag) and np.isfinite(FeHpoor_mag2) and np.isfinite(FeHrich_mag2):
-            # Finally interpolate using the closest FeHs and their magnitudes to get the magnitude at the given FeH:
-            model_mag = interp.linear_interp(FeH, (FeHpoor, FeHpoor_mag), (FeHrich, FeHrich_mag))
-            model_mag2 = interp.linear_interp(FeH, (FeHpoor, FeHpoor_mag2), (FeHrich, FeHrich_mag2))
+    if not np.isfinite(model_mag):
+        if calc_log:
+            return -np.inf
         else:
-            model_mag = np.inf
-            model_mag2 = np.inf
-
-    # Or else if the metallicity does exit
-    elif FeH_min <= FeH <= FeH_max:
-            model_mag = allmodel_cmdsets[FeH_index].getmag(age, initmass, data_bandindex)
-            model_mag2 = allmodel_cmdsets[FeH_index].getmag(age, secondarymass, data_bandindex)
-
-    # Or else if not in range, make probability zero:
-    else:
-        return -np.inf
-
-    if np.isfinite(model_mag) and np.isfinite(model_mag2):
-        model_mag = -2.5 * np.log10(10**(-model_mag/2.5) + 10**(-model_mag2 / 2.5))
-    else:
-        return -np.inf    
-
-    # MAKE THIS INPUT SETH <><@!? (prob. of being a field star for mixture model)
-    #Pfield = 0.25
+            return 0.0
 
     # Terms going into construction of the Gaussian term of the likelihood function (described in model.ipynb):
     sigma = phot_uncert
@@ -159,15 +126,9 @@ def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
     likelihood = cluster_likelihood + field_likelihood
     
     if calc_log:
-        if np.isfinite(model_mag):
-            return np.log(likelihood)
-        else:
-            return -np.inf
+        return np.log(likelihood)
     else:
-        if np.isfinite(model_mag):
-            return likelihood
-        else:
-            return 0.0
+        return likelihood
 
 # Calculates the likelihood for all datapoints in a given band. This is what I need to run 
 def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, allmodel_cmdsets, FeH_list, mode = 'all', magindex = None):
@@ -227,10 +188,6 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         and metallicity supplied via the theta parameter.
 
     """
-
-    # Extract current metallicity and age:
-    FeH = theta[0]
-    age = theta[1]
     
     # Band is an array holding all observed apparent magnitudes and their photometric uncertainties for the current band of interest.
     max_appmag = np.amax(band_magnitudes)
@@ -240,13 +197,18 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
     band_mag_range = (min_appmag, max_appmag)
     
     if mode == 'all':
+
+        # Extract current metallicity and age:
+        FeH = theta[0]
+        age = theta[1]
+
         # emcee sampling parameters:
         ndim = 2
         nwalkers = 6
-        nsteps = 3
+        nsteps = 10
 
         # For [primary mass, secondary mass]:
-        init_positions = [1.0, 0.5]
+        init_positions = [1.0, 0.4]
         # Set up the walkers in a Gaussian ball around the initial positions:
         init_positions = [init_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
 
@@ -260,7 +222,8 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         
             sampler = emcee.EnsembleSampler(nwalkers, ndim, stardata_lnprobability, 
                                             args = (band_magnitudes[i], band_uncertainties[i], bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age))
-
+            
+            print("RUNNING MCMC FOR STAR # {:d} OUT OF {:d} IN BAND {:d}...".format(i, len(band_magnitudes), bandindex))
             sampler.run_mcmc(init_positions, nsteps)
             # Gather sampled probabilities and cut out the burn in period. I took a look and it seems to be around 100...
             lnprob = sampler.lnprobability[:,:]
@@ -271,22 +234,30 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
             lnprob = probcounter.most_common(1)[0][0]
        
             lnLikelihood.append(lnprob)
-
-            # Right now this break exists to prevent crazy run times during testing:
-            break
-
-        # lnLikelihood has all of the likelihood calculations for every magnitude in the current band. Sum the loglikilihoods to get the full log-likelihood for the band:
+            
+            if i > 4:
+                break
+        
+        # lnLikelihood has all of the likelihood calculations for every magnitude in the current band. 
+        # Sum the loglikilihoods to get the full log-likelihood for the band:
         full_lnLikelihood = np.sum(np.array(lnLikelihood))
 
     elif mode == 'single':
  
         # In this mode, a fit is made to a single observed star using all models.
-        FeH = theta[0]
-        age = theta[1]
-        M1 = theta[2]
-        M2 = theta[3]
-        Pfield = 0.0 #theta[4]
-        star_theta = (M1, M2, Pfield)
+        if len(theta == 3):
+            FeH = theta[0]
+            age = theta[1]
+            M1 = theta[2]
+            Pfield = 0.0 #theta[4])
+            star_theta = (M1, Pfield)
+        elif len(theta == 4):
+            FeH = theta[0]
+            age = theta[1]
+            M1 = theta[2]
+            M2 = theta[3]
+            Pfield = 0.0 #theta[4]
+            star_theta = (M1, M2, Pfield)
 
         # For mode == 'single', pick out ONLY ONE magnitude and uncertainty to
         # compare to the model set within the current band:

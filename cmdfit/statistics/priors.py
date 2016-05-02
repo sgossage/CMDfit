@@ -38,9 +38,9 @@ def lnprior(theta, FeH_range, age_range):
     metallicity = theta[0]
     age = theta[1]
 
-    if age_range[0] < age < age_range[1]: #FeH_range[0] < metallicity < FeH_range[1] and:
+    if age_range[0] < age < age_range[1]:
         
-        return 0.0 + FeH_lnprior(metallicity)
+        return FeH_lnprior(metallicity)
 
     return -np.inf
 
@@ -121,21 +121,25 @@ def star_lnprior(star_theta):
           
     """
 
-    primary_mass = star_theta[0]
-    mass_ratio = star_theta[1]
-    secondary_mass = primary_mass * mass_ratio #star_theta[1]
-    #Pfield = star_theta[2]
+    if len(star_theta) == 2:
+        primary_mass = star_theta[0]
+        Pfield = star_theta[1]
+        return primary_mass_lnprior(primary_mass)
+        
+    elif len(star_theta) == 3:
+        primary_mass = star_theta[0]
+        secondary_mass = star_theta[1]
+        Pfield = star_theta[2]     
+        if 0.0 <= secondary_mass <= primary_mass:
 
-    if 0.0 <= secondary_mass <= primary_mass: #and 0.0 <= Pfield <= 1.0:
-
-        return 0.0 + primary_mass_lnprior(primary_mass)
+            return primary_mass_lnprior(primary_mass)
 
     return -np.inf
 
 def FeH_lnprior(metallicity, calc_log = True):
 
-    # Gaussian metallicity prior w/ std. dev. of +/- 0.1 dex, centered on FeH = 0.0 a la Brandt 2015.
-    # (Reflecting solar neighborhood contraints?)
+    # Gaussian metallicity prior w/ std. dev. of +/- 0.1 dex, 
+    # centered on FeH = 0.0 a la Brandt 2015.
     sig = 0.1
     const_factor = 1.0 / np.sqrt(2.0 * np.pi * sig**2.0)
     FeH_prior = const_factor * np.exp( -0.5 * (metallicity/sig)**2.0 )
