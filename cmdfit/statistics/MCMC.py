@@ -89,8 +89,8 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
     
     if mode == 'all':
         # emcee sampler parameters:
-        nwalkers = 6
-        nsteps = 3    
+        nwalkers = 10
+        nsteps = 150    
 
         #  [FeH, age]; preliminary values...just based on my understanding of what people believe currently
         # for the Hyades cluster:
@@ -105,10 +105,12 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
         print('\nRunning MCMC...\n')
         sampler.run_mcmc(initial_walker_positions, nsteps)
         print('DONE\n')
+  
+        return sampler, nwalkers, nsteps
 
     elif mode == 'single':
         # emcee sampler parameters:
-        nwalkers = 20
+        nwalkers = 40
         nsteps = 300
        
         #  [FeH, age, primary initial mass, secondary initial mass, and Pfield]
@@ -117,10 +119,10 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
                 model_params = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex]]
             # With secondary mass:
             elif ndim == 4:
-                model_params = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.4]
+                model_params = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.5]
             # With Pfield probability:
             elif ndim == 5:
-                model_params = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.4, 0.0]
+                model_params = [data_cmdset.FeH, data_cmdset.ages.ix[magindex], data_cmdset.initmasses.ix[magindex], 0.5, 0.0]
 
             print(model_params)
 
@@ -128,9 +130,8 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
             
             initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range)
 
-
-        else:
-            initial_positions = [0.10, 8.5, 1.0, 0.5, 0.5]
+        elif data_cmdset.kind == 'data':
+            initial_positions = [0.10, 8.5, 1.0, 0.5, 0.0]
 
             # Set up the walkers in a Gaussian ball around the initial positions:
             initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range)
@@ -144,8 +145,11 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
         print('\nRunning MCMC...\n')
         sampler.run_mcmc(initial_walker_positions, nsteps)
         print('DONE\n')
-
-    return sampler, nwalkers, nsteps, model_params
+        
+        if data_cmdset.kind == 'modeltest':
+            return sampler, nwalkers, nsteps, model_params
+        else:
+            return sampler, nwalkers, nsteps
 
 def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range):
 
@@ -155,25 +159,27 @@ def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH
     for i in range(nwalkers):
          
         if ndim == 2:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), np.random.randn()]))        
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn()]))        
         elif ndim == 3:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), np.random.randn(), np.random.randn()]))
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn(), np.random.randn()]))
         elif ndim == 4:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), np.random.randn(), np.random.randn(), 1e-1*np.random.randn()]))
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn(), np.random.randn(), 1e-1*np.random.randn()]))
         elif ndim == 5:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), np.random.randn(), np.random.randn(), 1e-1*np.random.randn(), np.random.randint(2)]))
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn(), np.random.randn(), 1e-1*np.random.randn(), np.random.randint(2)]))
 
         if ndim >=2:
-            # Age:
-            if initial_walker_positions[i][1] > age_range[1]:
-                initial_walker_positions[i][1] = age_range[1]
-            if initial_walker_positions[i][1] < age_range[0]:
-                initial_walker_positions[i][1] = age_range[0]
+
             # [Fe/H]:
             if initial_walker_positions[i][0] < FeH_range[0]:
                 initial_walker_positions[i][0] = FeH_range[0]
             if initial_walker_positions[i][0] > FeH_range[1]:
                 initial_walker_positions[i][0] = FeH_range[1]
+
+            # Age:
+            if initial_walker_positions[i][1] < age_range[0]:
+                initial_walker_positions[i][1] = age_range[0]
+            if initial_walker_positions[i][1] > age_range[1]:
+                initial_walker_positions[i][1] = age_range[1]
          
             if ndim >= 3:
                 # Primary mass

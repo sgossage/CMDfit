@@ -106,7 +106,7 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
             l = re.compile('[+-]?\d+\.\d+|\w+|       ').findall(line)
             # delete the first blank, if it's there:
             if ' ' in l[0]:
-                print('WARNING: first blank found and deleted in data line of {:s}'.format(data_file.split('/')[-1]))
+                #print('WARNING: first blank found and deleted in data line of {:s}'.format(data_file.split('/')[-1]))
                 l = np.delete(l, 0).tolist()
         # if dealing with the iso .cmd file, the following format is req. for the data entries:
         else:

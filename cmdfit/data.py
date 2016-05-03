@@ -167,14 +167,15 @@ class cmdset(object):
                 uncerNames = np.array(uncertNames)
                 loadedUncert = pd.DataFrame(uncertMatrix.T, columns = uncertNames)
 
-                return loadedData, loadedUncert
+                return loadedData, loadedUncert, data_file
 
             # For models return age, mass, and magnitudes:
             return loadedData
 
         # === Attributes ===: 
         if kind == 'data':
-            self.magnitudes, self.uncertainties = loadData(readmode = 'data', data_file=data_file, usecol=usecol)
+            self.magnitudes, self.uncertainties, filename = loadData(readmode = 'data', data_file=data_file, usecol=usecol)
+            self.filename = filename.split('/')[-1]
         
         elif kind == 'model':
             if 5.0 <= agecut <= 10.0:
@@ -193,7 +194,7 @@ class cmdset(object):
 
         elif kind == 'modeltest':
             if 5.0 <= agecut <= 10.0:
-                self.fullframe, self.uncertainties = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
+                self.fullframe, self.uncertainties, filename = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
                 indices = np.where(self.fullframe['log10 age'].values >= agecut)[0]
                 self.cutframe = self.fullframe.ix[indices,:].reset_index(drop=True)
                 self.ages = self.cutframe.ix[:, 'log10 age']
@@ -201,10 +202,12 @@ class cmdset(object):
                 self.magnitudes = self.cutframe.ix[:, 2:]
                 self.uncertainties = self.uncertainties.ix[indices,:]
             else:
-                self.fullframe, self.uncertainties = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
+                self.fullframe, self.uncertainties, filename = loadData(readmode = 'modeltest', data_file=data_file, usecol=usecol)
                 self.ages = self.fullframe.ix[:, 'log10 age']
                 self.initmasses = self.fullframe.ix[:, 'Initial Mass']
                 self.magnitudes = self.fullframe.ix[:, 2:]
+
+            self.filename = filename.split('/')[-1]
 
         self.kind = kind
      
@@ -284,6 +287,34 @@ class cmdset(object):
         self.uncertainties = self.uncertainties.reset_index(drop=True)
 
         return
+
+    # Make a list of isochrones from a model cmdset:
+    def makeisoset(self, low_age = None, high_age = None):
+
+        if low_age == None:
+            low_age = min(self.cmdset.ages.values)
+        if high_age == None:
+            high_age = max(self.cmdset.ages.values)
+
+        lowindex = np.where(self.ages.values >= low_age)[0][0]
+        highindex = np.where(self.ages.values <= high_age)[0][-1] + 1
+
+        isoset = [iso.isochrone(self, age) for age in np.unique(self.ages.values[lowindex:highindex])]
+        
+        return isoset
+
+    # Random sampling of dataset:
+    def randsamp(self, samplenum):
+    
+        if self.kind == 'data':
+            self.magnitudes = self.magnitudes.sample(samplenum)
+            indices = self.magnitudes.index
+            self.uncertainties = self.uncertainties.ix[indices].reset_index(drop=True)
+            self.magnitudes = self.magnitudes.reset_index(drop=True)
+        
+        return
+                
+
 
 # For getting magnitudes across cmdsets:
 def getcmdsetsmag(allmodel_cmdsets, age, initmass, FeH, FeH_list, data_bandindex, secondarymass = None):
@@ -410,5 +441,7 @@ def select_pathtofile(mode):
 
     else:                                             
         return "ERROR: Improper mode input for select_pathtofile(mode). Input should be either: mode = \'data\' or mode = \'model\'."
+
+
         
         

@@ -52,7 +52,7 @@ def find_closestMasses(initmass, mass_array, returnIndices = True):
 
         # If an array of indices were found...
         if isinstance(closestMass_index, list) or isinstance(closestMass_index, np.ndarray):
-            closestMass_index = closestMass_index[0]
+            closestMass_index = min(closestMass_index)
 
         bigMass = mass_array[closestMass_index + 1]
         lilMass = closestMass
@@ -64,7 +64,7 @@ def find_closestMasses(initmass, mass_array, returnIndices = True):
         
         # If an array of indices were found...
         if isinstance(closestMass_index, list) or isinstance(closestMass_index, np.ndarray):
-            closestMass_index = closestMass_index[0]
+            closestMass_index = max(closestMass_index)
    
         lilMass = mass_array[closestMass_index - 1]
         bigMass = closestMass

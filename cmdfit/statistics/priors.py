@@ -93,7 +93,7 @@ def primary_mass_lnprior(primary_mass, calc_log=True):
     else:
         return primaryM_prior
 
-def star_lnprior(star_theta):
+def star_lnprior(star_theta, mode = 'single'):
 
     """
       This function represents a flat prior probability distrubtion in the range of 0 to the proposed
@@ -121,15 +121,24 @@ def star_lnprior(star_theta):
           
     """
 
-    if len(star_theta) == 2:
-        primary_mass = star_theta[0]
-        Pfield = star_theta[1]
-        return primary_mass_lnprior(primary_mass)
-        
-    elif len(star_theta) == 3:
+    if mode == 'single':
+        if len(star_theta) == 2:
+            primary_mass = star_theta[0]
+            Pfield = star_theta[1]
+            return primary_mass_lnprior(primary_mass)
+
+        elif len(star_theta) == 3:
+            primary_mass = star_theta[0]
+            secondary_mass = star_theta[1]
+            Pfield = star_theta[2]
+
+            if 0.0 <= secondary_mass <= primary_mass and 0.0 <= Pfield <= 1.0:
+
+                return primary_mass_lnprior(primary_mass)
+
+    elif mode == 'all':
         primary_mass = star_theta[0]
         secondary_mass = star_theta[1]
-        Pfield = star_theta[2]     
         if 0.0 <= secondary_mass <= primary_mass:
 
             return primary_mass_lnprior(primary_mass)
