@@ -96,6 +96,11 @@ def fitsingle(mode, ndim = 3):
     if mode == 'data':
         # load an observed cmd:
         data_cmdset = data.cmdset('data')
+
+        # Confine data's magnitude range to a small range
+        # near MSTO for now...
+        data_cmdset.datacutmags(1, 4)
+
         random_index = np.random.random_integers(len(data_cmdset.magnitudes.values)) 
 
     if mode == 'modeltest':
@@ -121,9 +126,11 @@ def fitsingle(mode, ndim = 3):
 
     # Run MCMC with the supplied models and observed data (should make magindex selectable):
     if mode == 'modeltest':
-        sampler, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex= random_index,ndim= ndim)
+        sampler, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list,
+                                                                    mode='single', magindex= random_index,ndim= ndim)
     else:
-        sampler, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode='single', magindex= random_index,ndim= ndim)
+        sampler, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, 
+                                                      mode='single', magindex= random_index,ndim= ndim)
 
     if ndim == 3:
         fig, (ax_feh, ax_age, ax_M1) = plt.subplots(ndim)
@@ -169,9 +176,11 @@ def fitsingle(mode, ndim = 3):
     if ndim == 3:
         param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2]})
     if ndim == 4:
-        param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3]})
+        param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 
+                                      'Primary Mass':traces[2], 'Secondary Mass':traces[3]})
     if ndim == 5:
-        param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 'Secondary Mass':traces[3], 'Pfield':traces[4]})
+        param_samples = pd.DataFrame({'[Fe/H]': traces[0], 'log10 Age':traces[1], 'Primary Mass':traces[2], 
+                                      'Secondary Mass':traces[3], 'Pfield':traces[4]})
     
     q = param_samples.quantile([0.16, 0.50, 0.84], axis=0)
     print('\nMAP Values:')

@@ -34,7 +34,7 @@ class cmdset(object):
                 extras_flag = True
             
             else:
-                print('Usage:\ncmdset(kind = ...), where \'...\' is either \'data\' if reading from a data file or \'model\' if reading from a model file.')
+                print('Usage:\ncmdset(kind = ...), where \'...\' is either \'data\' if reading from a data file or\'model\' if reading from a model file.')
                 return
 
             # Arrays that will hold loaded data, uncertainties (if readmode = 'data'), 
@@ -92,16 +92,17 @@ class cmdset(object):
                     # For data files, ask about loading in uncertainties from the data table:
                     response = 'n'
                     # Reading uncertainties is disabled at the moment.
-                    #if readmode == 'data':
+                    if readmode == 'data':
               
-                    #    print('\nSELECT UNCERTAINTIES FOR {:s}.'.format(dataName))
+                        print('\nSELECT UNCERTAINTIES FOR {:s}.'.format(dataName))
                         # Ask if uncertainties should be loaded from the data file, or generated in some other way.
-                    #    response = user.ask_for_specific_input('LOAD FROM {:s}? (If \'n\', a nominal +/-0.1 dex will be used.)'.format(data_file.split('/')[-1]), 'y', 'n')
+                        response = user.ask_for_specific_input('LOAD FROM {:s}? (If \'n\', a nominal +/-0.1 dex will be used.)'.format(data_file.split('/')[-1]), 'y', 'n')
                     
                     if response == 'y':
                             uncertCol, uncertName = cread.assign_data(data_file, mode=readmode, returnNames=True)
 
-                    # If the answer is no for loading uncertainties, just suppy some nominal values. modeltest cmdsets will always have this value as their uncertainty.
+                    # If the answer is no for loading uncertainties, just sluppy some nominal values.
+                    # modeltest cmdsets will always have this value as their uncertainty.
                     else:
                         # In the future maybe give some options for users to select how they want to 
                         # generate uncertainties if the data doesn't supply them.
@@ -153,7 +154,9 @@ class cmdset(object):
                     usecol = self.usedcolumns[usecol_index]
                     extras_flag = False
 
-            # Now we have a matrix containing all selected magnitudes; each magnitude set is stored columnwise in dataMatrix and the respective column names are stored columnwise in dataNames.
+            # Now we have a matrix containing all selected magnitudes; 
+            # each magnitude set is stored columnwise in dataMatrix and the 
+            # respective column names are stored columnwise in dataNames.
             # Place the data into a Pandas data frame for easy reference:
             dataMatrix = np.array(dataMatrix)
             dataNames = np.array(dataNames)
@@ -319,8 +322,10 @@ class cmdset(object):
 # For getting magnitudes across cmdsets:
 def getcmdsetsmag(allmodel_cmdsets, age, initmass, FeH, FeH_list, data_bandindex, secondarymass = None):
 
-    # Here I should check on interpolating between metallicities; if necessary, getmag from two nearest cmdsets and interpolate a new magnitude at the given
-    # metallicity if the given metallicity does not exist. Check an input list of available metallicities:
+    # Here I should check on interpolating between metallicities; 
+    # if necessary, getmag from two nearest cmdsets and interpolate 
+    # a new magnitude at the given metallicity if the given metallicity 
+    # does not exist. Check an input list of available metallicities:
     FeH_max = np.amax(FeH_list)
     FeH_min = np.amin(FeH_list)
 

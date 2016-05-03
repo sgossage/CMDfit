@@ -217,16 +217,19 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         # Set up the walkers in a Gaussian ball around the initial positions:
         init_positions = [init_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
 
-        # Loop through and calculate the probabilities of each star, comparing each to all masses on the current isochrone and finding the most likely:
+        # Loop through and calculate the probabilities of each star, comparing each to 
+        # all masses on the current isochrone and finding the most likely:
         lnLikelihood = []
         for i in range(len(band_magnitudes)):
 
             # Calculate the log likelihood for all stars in this band:
-            # For each star, I need to run MCMC to figure out the most likely mass sampling. The lnprob returned by this sampling is the log likelihood
-            # for that star. So replace likelihood() with a new function which is likelihood() * (mass priors) and do mcmc on that; get the lnprob from it.
+            # For each star, I need to run MCMC to figure out the most likely mass sampling. 
+            # The lnprob returned by this sampling is the log likelihood for that star. 
+            # So replace likelihood() with a new function which is likelihood() * (mass priors) and do mcmc on that; get the lnprob from it.
         
             sampler = emcee.EnsembleSampler(nwalkers, ndim, stardata_lnprobability, 
-                                            args = (band_magnitudes[i], band_uncertainties[i], bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, mode))
+                                              args = (band_magnitudes[i], band_uncertainties[i], 
+                                                bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, mode))
             
             print("RUNNING MCMC FOR STAR # {:d} OUT OF {:d} IN BAND {:d}...".format(i, len(band_magnitudes), bandindex))
             sampler.run_mcmc(init_positions, nsteps)
@@ -270,8 +273,10 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         band_mag = band_magnitudes[magindex]
         band_uncert = band_uncertainties[magindex]
 
-        # Compare this single magnitude to all models to figure out which model most likely matches, and thus determin the data's parameters:
-        full_lnLikelihood = stardata_lnprobability(star_theta, band_mag, band_uncert, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, mode='single')
+        # Compare this single magnitude to all models to figure out which model most likely matches, 
+        # and thus determin the data's parameters:
+        full_lnLikelihood = stardata_lnprobability(star_theta, band_mag, band_uncert, bandindex, allmodel_cmdsets,
+                                                     FeH_list, band_mag_range, FeH, age, mode='single')
 
     else:
         # Placeholder error message...
@@ -334,7 +339,8 @@ def allband_lnLikelihood(theta, data_cmdset, allmodel_cmdsets, FeH_list, mode='a
         # Calculate the log-likelihood for the current band and store it in an array:
         band_lnLikelihoods.append( band_lnLikelihood(theta, band[0], band[1], i, allmodel_cmdsets, FeH_list, mode, magindex)  )
     
-    # Having calculated a likelihood for each band, sum the log-likelihoods to obtain the full joint log-likelihood (which accounts for all bands and their magnitudes):
+    # Having calculated a likelihood for each band, sum the log-likelihoods to obtain 
+    # the full joint log-likelihood (which accounts for all bands and their magnitudes):
     fulljoint_lnLikelihood = np.sum(np.array(band_lnLikelihoods))
 
     return fulljoint_lnLikelihood
@@ -417,4 +423,5 @@ def stardata_lnprobability(star_theta, star_magnitude, star_sigma, bandindex, al
     if not np.isfinite(lnp):
         return -np.inf
 
-    return lnp + likelihood(star_theta, star_magnitude, star_sigma, bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, calc_log=True, mode=mode)
+    return lnp + likelihood(star_theta, star_magnitude, star_sigma, bandindex, allmodel_cmdsets, 
+                              FeH_list, band_mag_range, FeH, age, calc_log=True, mode=mode)

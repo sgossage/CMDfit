@@ -103,7 +103,8 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
     for line in data_lines:
         
         if mode == 'data':
-            l = re.compile('[+-]?\d+\.\d+|\w+|       ').findall(line)
+            #l = re.compile('[+-]?\d+\.\d+|\w+|       ').findall(line)
+            l = re.compile('[+-]?\d+\.\d+').findall(line)
             # delete the first blank, if it's there:
             if ' ' in l[0]:
                 #print('WARNING: first blank found and deleted in data line of {:s}'.format(data_file.split('/')[-1]))
@@ -144,7 +145,8 @@ def get_values(data_file, column_index, mode='data', model_extras=False):
     
 # ==========================================================================================================================
 
-def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = False, returnNames = False, model_extras=False, corrections=None, silent=False):
+def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = False, returnNames = False, 
+                 model_extras=False, corrections=None, silent=False):
     
     """
       returns columns in a useful way (e.g. mass, age, and a magnitude all together), or the columns with their names and indices.

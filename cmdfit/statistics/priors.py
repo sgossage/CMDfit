@@ -117,8 +117,8 @@ def star_lnprior(star_theta, mode = 'single'):
         +++++++++++++++++++
           The returned value represents the log-prior probability of the proposed secondary mass value. If
         the proposed value lies outside the range of greater than 0 and less than the initial primary mass,
-        a value of -infinity (zero log-probability) is returned.
-          
+        a value of -infinity (zero log-probability) is returned. 
+         
     """
 
     if mode == 'single':
