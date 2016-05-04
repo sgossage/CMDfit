@@ -96,17 +96,16 @@ class cmdset(object):
               
                         print('\nSELECT UNCERTAINTIES FOR {:s}.'.format(dataName))
                         # Ask if uncertainties should be loaded from the data file, or generated in some other way.
-                        response = user.ask_for_specific_input('LOAD FROM {:s}? (If \'n\', a nominal +/-0.1 dex will be used.)'.format(data_file.split('/')[-1]), 'y', 'n')
+                        response = user.ask_for_specific_input('LOAD FROM {:s}? (If \'n\', a nominal +/-0.05 dex will be used.)'.format(data_file.split('/')[-1]), 'y', 'n')
                     
                     if response == 'y':
-                            uncertCol, uncertName = cread.assign_data(data_file, mode=readmode, returnNames=True)
+                            uncertCol, uncertName = cread.assign_data(data_file, mode=readmode, returnNames=True, silent=True)
 
                     # If the answer is no for loading uncertainties, just sluppy some nominal values.
                     # modeltest cmdsets will always have this value as their uncertainty.
                     else:
                         # In the future maybe give some options for users to select how they want to 
                         # generate uncertainties if the data doesn't supply them.
-                        # This nominal value is based on my reading of Jorgensen & Lindegren 2005.
                         uncertCol = [0.05] * len(dataCol)
                         uncertName = dataName + 'err'
                     

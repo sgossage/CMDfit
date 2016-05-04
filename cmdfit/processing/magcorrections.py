@@ -2,6 +2,9 @@ import numpy as np
 import os
 from . import userinteract as user
 
+# Actually does NOT do AB to Vega correction right now because it isnt necessary 
+# in the new model files for 2MASS photometry.
+
 def ABtoVega(magnitude_array, band_column, silent = False):
 
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -17,7 +20,7 @@ def ABtoVega(magnitude_array, band_column, silent = False):
     # if 'Hyades' in data_file:
     distance_modulus = 3.33
     if silent == False:
-        print('\nConverting from AB magnitude system to Vega system...\nApplying distance modulus correction...')
+       # print('\nConverting from AB magnitude system to Vega system...\nApplying distance modulus correction...')
         print('Applying HYADES distance modulus: {:f}'.format(distance_modulus))     
 
     modelfile_skippedcols = 7

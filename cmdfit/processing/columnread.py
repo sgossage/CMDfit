@@ -60,7 +60,7 @@ def header_select_col(data_file, mode = 'data', returnNames = False, silent=Fals
             print('{:d}) {:s}'.format(i, name))
         print('========================================================')
     
-    col1 = user.ask_for_specific_input('ENTER COLUMN INDEX OF DESIRED FILTER: ', type_to_check = int)
+    col1 = user.ask_for_specific_input('\nENTER COLUMN INDEX OF DESIRED FILTER: ', type_to_check = int)
         
     if returnNames:
         return col1, hlist[col1]

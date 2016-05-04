@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from . import priors
 from . import likelihood
+from cmdfit import isochrone as iso
 
 def lnposterior(theta, data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_range, mode = 'all', magindex=None):
 
@@ -85,10 +86,13 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
     # For the age range, all model cmdsets should have the same age range, so just look at the 0th range: 
     age_range = ( np.amin(allmodel_cmdsets[0].ages.values), np.amax(allmodel_cmdsets[0].ages.values))
     # The mass range will be the same in all cmdsets too:
+    #oldestiso = iso.isochrone(allmodel_cmdsets[0], 10.0)
+    
     mass_range = ( np.amin(allmodel_cmdsets[0].initmasses.values), np.amax(allmodel_cmdsets[0].initmasses.values)  )
     
     if mode == 'all':
         # emcee sampler parameters:
+        ndim = 2
         nwalkers = 10
         nsteps = 150    
 
@@ -96,7 +100,7 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
         # for the Hyades cluster:
         initial_positions = [0.15, 8.6]
         # Set up the walkers in a Gaussian ball around the initial positions:
-        initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range)
+        initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range, allmodel_cmdsets)
 
         # Assign the sampler object using parameters from above:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnposterior, args=(data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_range))
@@ -128,7 +132,7 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
 
             initial_positions = model_params
             
-            initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range)
+            initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range, allmodel_cmdsets[0])
 
         elif data_cmdset.kind == 'data':
 
@@ -140,7 +144,7 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
               initial_positions = [0.10, 8.5, 1.0, 0.5, 0.0]
 
             # Set up the walkers in a Gaussian ball around the initial positions:
-            initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range)
+            initial_walker_positions = make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range, allmodel_cmdsets[0])
 
         # Assign the sampler object using parameters from above:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnposterior, args=(data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_range, mode, magindex))
@@ -157,7 +161,7 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
         else:
             return sampler, nwalkers, nsteps
 
-def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range):
+def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH_range, cmdset):
 
     initial_walker_positions = []
     # Make the field probability star off randomly as either 0 or 1 for all walkers,
@@ -189,17 +193,24 @@ def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH
                 initial_walker_positions[i][1] = age_range[0]
             if initial_walker_positions[i][1] > age_range[1]:
                 initial_walker_positions[i][1] = age_range[1]
-         
+
             if ndim >= 3:
+
+                # need to make sure the walker doesnt get a mass outside of the valid range for
+                # that age, which cmdset from the allmodel_cmdset array we use is arbitrary:
+                walkeriso = iso.isochrone(cmdset, initial_walker_positions[i][1])
+                walkeriso_maxmass = max(walkeriso.initmasses.values)
+                walkeriso_minmass = min(walkeriso.initmasses.values)
+
                 # Primary mass
-                if initial_walker_positions[i][2] < mass_range[0]:
-                    initial_walker_positions[i][2] = mass_range[0]
-                if initial_walker_positions[i][2] > mass_range[1]:
-                    initial_walker_positions[i][2] = mass_range[1]
+                if initial_walker_positions[i][2] < walkeriso_minmass:
+                    initial_walker_positions[i][2] = walkeriso_minmass
+                if initial_walker_positions[i][2] > walkeriso_maxmass:
+                    initial_walker_positions[i][2] = 0.8*walkeriso_maxmass
                 if ndim >= 4:
                     # Secondary mass:
-                    if initial_walker_positions[i][3] < 0.35:
-                        initial_walker_positions[i][3] = 0.35
+                    if initial_walker_positions[i][3] < 0.4:
+                        initial_walker_positions[i][3] = 0.4
                     if initial_walker_positions[i][3] > initial_walker_positions[i][2]:
                         initial_walker_positions[i][3] = initial_walker_positions[i][2]
           

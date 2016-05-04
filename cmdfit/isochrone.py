@@ -2,11 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cmdfit.processing import interp
 
-
 # WIP
 class isochrone(object):
 
-    def __init__(self, cmdset, age):
+    def __init__(self, cmdset, age, silent=False):
         
         # Pick out the relevent age block from the given cmdset:
         age_array = cmdset.ages.values
@@ -24,7 +23,9 @@ class isochrone(object):
                 younger_Age, older_Age = interp.find_closestAges(age, age_array)
                 
                 # For now just default to the younger age found. Maybe later make this selectable:
-                print("log10 age = {:f} was found.".format(younger_Age))
+                if silent == False:
+                    print("log10 age = {:f} was found.".format(younger_Age))
+
                 age = younger_Age
 
         elif not age_min <= age <= age_max:
@@ -39,6 +40,7 @@ class isochrone(object):
 
         self.initmasses = cmdset.initmasses.ix[isochrone_indexlist]
         self.age = age
+        self.FeH = cmdset.FeH
         self.kind = cmdset.kind
 
     # Given an isochrone and proposed initial mass, get the magnitude of the star with the proposed mass:

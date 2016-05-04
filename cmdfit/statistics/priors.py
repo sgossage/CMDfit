@@ -125,6 +125,7 @@ def star_lnprior(star_theta, mode = 'single'):
         if len(star_theta) == 2:
             primary_mass = star_theta[0]
             Pfield = star_theta[1]
+
             return primary_mass_lnprior(primary_mass)
 
         elif len(star_theta) == 3:
@@ -137,10 +138,30 @@ def star_lnprior(star_theta, mode = 'single'):
                 return primary_mass_lnprior(primary_mass)
 
     elif mode == 'all':
-        primary_mass = star_theta[0]
-        secondary_mass = star_theta[1]
-        if 0.0 <= secondary_mass <= primary_mass:
-
+        if isinstance(star_theta, np.ndarray) or isinstance(star_theta, list):
+            if len(star_theta) == 1:
+                primary_mass = star_theta[0]
+                Pfield = 0.0
+        
+                return primary_mass_lnprior(primary_mass)
+        
+            elif len(star_theta) == 2:
+                primary_mass = star_theta[0]
+                secondary_mass = star_theta[1]
+                Pfield = 0.0
+            elif len(star_theta) == 3:
+                primary_mass = star_theta[0]
+                secondary_mass = star_theta[1]
+                Pfield = star_theta[3]
+        
+            if 0.0 <= secondary_mass <= primary_mass and 0.0 <= Pfield <= 1.0:
+        
+                return primary_mass_lnprior(primary_mass)
+        
+        else:
+            primary_mass = star_theta
+            Pfield = 0.0
+         
             return primary_mass_lnprior(primary_mass)
 
     return -np.inf

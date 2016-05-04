@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from . import priors
 import cmdfit.data as data
+import cmdfit.isochrone as iso
 
 # Calculates the likelihood of a single star, i.e. a single magnitude, given the set of parameters theta.
 def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdsets, FeH_list, data_mag_range, FeH, age, calc_log = True, mode ='single'):
@@ -101,10 +102,25 @@ def likelihood(star_theta, data_mag, phot_uncert, data_bandindex, allmodel_cmdse
             Pfield = star_theta[2]
 
     elif mode == 'all':
-        initmass = star_theta[0]
-        secondarymass = star_theta[1]
-        Pfield = 0.0
+        if isinstance(star_theta, np.ndarray) or isinstance(star_theta, list):
+            if len(star_theta) == 1:
+                initmass = star_theta[0]
+                Pfield = 0.0
+                secondarymass = None
+            if len(star_theta) == 2:
+                initmass = star_theta[0]
+                secondarymass = star_theta[1]
+                Pfield = 0.0
+            elif len(star_theta) == 3:
+                initmass = star_theta[0]
+                secondarymass = star_theta[1]
+                Pfield = star_theta[2]
+        else:
+            initmass = star_theta
+            Pfield = 0.0
+            secondarymass = None
 
+    # Get a magnitude given the model parameters:
     model_mag = data.getcmdsetsmag(allmodel_cmdsets, age, initmass, FeH, FeH_list, data_bandindex, secondarymass = secondarymass)  
 
     if not np.isfinite(model_mag):
@@ -208,14 +224,38 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         age = theta[1]
 
         # Here the primary and secondary mass are sampled:
-        ndim = 2
-        nwalkers = 6
-        nsteps = 10
+        ndim = 1
+        nwalkers = 10
+        nsteps = 150
+  
+        # Make an isochrone of the proposed age:
+        if 8.0 < age < 10.0:
+            currentiso = iso.isochrone(allmodel_cmdsets[0], age, silent=True)
+            massbounds = (min(currentiso.initmasses.values), max(currentiso.initmasses.values))
+        # if the age proposition is out of range, return 0 probability:
+        else:
+            return -np.inf
 
-        # For [primary mass, secondary mass]:
-        init_positions = [1.0, 0.4]
-        # Set up the walkers in a Gaussian ball around the initial positions:
-        init_positions = [init_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        if ndim == 1:
+            init_positions = [1.0 + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+
+        elif ndim == 2:
+            # For [primary mass, secondary mass]:
+            init_positions = [1.0, 0.4]
+            # Set up the walkers in a Gaussian ball around the initial positions:
+            init_positions = [init_positions + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        
+        for i in range(nwalkers):
+            if init_positions[i][0] > massbounds[1]:
+                init_positions[i][0] = massbounds[1]
+            if init_positions[i][0] < massbounds[0]:
+                init_positions[i][0] = massbounds[0]
+
+            if ndim >= 2:
+                if init_positionis[i][1] < massbounds[0]:
+                    init_positons[i][1] = massbounds[0]
+                if init_positions[i][1] > init_positions[0]:
+                    init_positions[i][1] = init_positions[0]
 
         # Loop through and calculate the probabilities of each star, comparing each to 
         # all masses on the current isochrone and finding the most likely:

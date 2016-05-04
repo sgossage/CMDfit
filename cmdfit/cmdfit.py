@@ -27,17 +27,15 @@ def fitall(mode = 'data', test_age = 9.0):
     if mode == 'data':
         # load an observed cmd:
         data_cmdset = data.cmdset('data')
-    
         # Confine data's magnitude range to lie within isochrone's range for now...
-        data_cmdset.datacutmags(1, 8)
-
-        # Grab 5 random points:
-        data_cmdset.randsamp(5)
+        data_cmdset.datacutmags(1, 4)
+        # Grab 3 random points:
+        data_cmdset.randsamp(3)
 
     if mode == 'modeltest':
         data_cmdset = data.cmdset('modeltest')
         data_cmdset = iso.isochrone(data_cmdset, test_age)
-        data_cmdset.isorandsamp(5)
+        data_cmdset.isorandsamp(3)
     
     # Load a set of model cmds; the user will select which directory to load from:
     allmodel_cmdsets = data.all_modelcmdsets()
@@ -59,7 +57,12 @@ def fitall(mode = 'data', test_age = 9.0):
     ax_feh.set(ylabel='[Fe/H]')
     ax_age.set(ylabel='log10 Age')
 
-    for i in range(ndim):
+    if nwalkers >=10:
+        N = 10
+    else:
+        N = nwalkers
+
+    for i in range(N):
         sns.tsplot(sampler.chain[i,:,0], ax=ax_feh)
         sns.tsplot(sampler.chain[i,:,1], ax=ax_age)
     
@@ -74,22 +77,16 @@ def fitall(mode = 'data', test_age = 9.0):
 
     q = param_samples.quantile([0.16, 0.50, 0.84], axis=0)
     print(q) 
+    print()
 
-    # Right now this stuff tries to plot the star input with the MAP isochrone found.
-    # Its not done in a great way right now, need to interpolate to be more accurate maybe.
-    MAPfeh = q['[Fe/H]'][0.50]
-    FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(MAPfeh, sortedFeH_list)
-    modelset = allmodel_cmdsets[FeHpoor_index]
-
-    isofound = iso.isochrone(modelset, q['log10 Age'][0.50])
-
-    isofound.isoplotCMD(0, 1, data_cmdset, random_index)
+    # Plot the isochrones corresponding to the MAP values:
+    plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, random_index = None)
 
     jkde = sns.jointplot(x='[Fe/H]', y='log10 Age', data=param_samples, kind='kde')
 
     sns.plt.show()
 
-    return param_samples
+    return param_samples, sampler
 
 def fitsingle(mode, ndim = 3):
 
@@ -187,40 +184,8 @@ def fitsingle(mode, ndim = 3):
     print(q)
     print()   
 
-    # Right now this stuff tries to plot the star input with the MAP isochrone found.
-    # Its not done in a great way right now, need to interpolate to be more accurate maybe.
-    MAPfeh = q['[Fe/H]'][0.50]
-    FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(MAPfeh, sortedFeH_list)
-    modelset = allmodel_cmdsets[FeHpoor_index]
-
-    isochronesfound = []
-    quantiles = [0.16, 0.50, 0.84]
-    rev_quant = quantiles[::-1]
-    for j in range(len(quantiles)):
-        # The isochrones and primary mass magnitudes found 
-        # corresponding to the 16, 50 and 84% quantiles:
-        isofound = iso.isochrone(modelset, q['log10 Age'][quantiles[j]])
-        foundstar_mags = [isofound.isogetmag(q['Primary Mass'][rev_quant[j]], i) for i in range(modelset.numbands)]
-
-        # If available, plot the secondary mass' magnitude too:
-        if ndim == 4:
-            # Get partner's magnitudes:
-            foundstar2_mags = [isofound.isogetmag(q['Secondary Mass'][rev_quant[j]], i) for i in range(modelset.numbands)]
-            # Combine primary and secondary magnitudes:
-            fullmag = [-2.5 * np.log10(10**(-foundstar_mags[i]/2.5) + 10**(-foundstar2_mags[i]/2.5)) for i in range(modelset.numbands)]
-            if np.isfinite(fullmag[0]) and np.isfinite(fullmag[1]):
-                plt.errorbar(foundstar2_mags[0] - foundstar2_mags[1], foundstar2_mags[1], color = 'b', fmt = 'o', label='Model Star {:d}'.format(j))
-                # Plot the full, combined magnitude point:
-                plt.errorbar(fullmag[0] - fullmag[1], fullmag[1], color='k', fmt='o')
-            else:
-                print("The magnitudes found for the secondary star: {}.".format(fullmag))
-        
-        # Plot the found primary mass' magnitude:
-        plt.errorbar(foundstar_mags[0] - foundstar_mags[1], foundstar_mags[1], color='r', fmt='o')
-        isochronesfound.append(isofound)
-
-    # Now plot the isochrones at all quantiles, along with the single data point:
-    iso.multiisoCMD(isochrone_set=isochronesfound, dataset=data_cmdset, magindex=random_index)
+    # Plot the isochrones corresponding to the MAP values:
+    plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, random_index = random_index)
 
     if mode == 'modeltest':
         
@@ -242,3 +207,50 @@ def fitsingle(mode, ndim = 3):
     sns.plt.show() 
 
     return param_samples, sampler
+
+def plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, random_index = None):
+
+
+    # Right now this stuff tries to plot the star input with the MAP isochrone found.
+    # Its not done in a great way right now, need to interpolate to be more accurate maybe.
+    MAPfeh = q['[Fe/H]'][0.50]
+    FeHrich, FeHpoor, FeHrich_index, FeHpoor_index = interp.find_closestFeHs(MAPfeh, sortedFeH_list)
+    modelset = allmodel_cmdsets[FeHpoor_index]
+
+    isochronesfound = []
+    quantiles = [0.16, 0.50, 0.84]
+    rev_quant = quantiles[::-1]
+    for j in range(len(quantiles)):
+        # The isochrones and primary mass magnitudes found 
+        # corresponding to the 16, 50 and 84% quantiles:
+        isofound = iso.isochrone(modelset, q['log10 Age'][quantiles[j]])
+  
+        # If plotting fitting a single data point, find the stars the MAP values are suggesting and show them too:
+        if random_index != None:
+            foundstar_mags = [isofound.isogetmag(q['Primary Mass'][rev_quant[j]], i) for i in range(modelset.numbands)]
+
+            # If available, plot the secondary mass' magnitude too:
+            if ndim == 4:
+                # Get partner's magnitudes:
+                foundstar2_mags = [isofound.isogetmag(q['Secondary Mass'][rev_quant[j]], i) for i in range(modelset.numbands)]
+                # Combine primary and secondary magnitudes:
+                fullmag = [-2.5 * np.log10(10**(-foundstar_mags[i]/2.5) + 10**(-foundstar2_mags[i]/2.5)) for i in range(modelset.numbands)]
+                if np.isfinite(fullmag[0]) and np.isfinite(fullmag[1]):
+                    plt.errorbar(foundstar2_mags[0] - foundstar2_mags[1], foundstar2_mags[1], color = 'b', fmt = 'o', label='Model Star {:d}'.format(j))
+                    # Plot the full, combined magnitude point:
+                    plt.errorbar(fullmag[0] - fullmag[1], fullmag[1], color='k', fmt='o')
+                else:
+                    print("The magnitudes found for the secondary star: {}.".format(fullmag))
+        
+            # Plot the found primary mass' magnitude:
+            plt.errorbar(foundstar_mags[0] - foundstar_mags[1], foundstar_mags[1], color='r', fmt='o')
+
+        isochronesfound.append(isofound)
+
+    if random_index != None:
+        # Now plot the isochrones at all quantiles, along with the single data point:
+        iso.multiisoCMD(isochrone_set=isochronesfound, dataset=data_cmdset, magindex=random_index)
+    else:
+        iso.multiisoCMD(isochrone_set=isochronesfound, dataset=data_cmdset)
+
+    return
