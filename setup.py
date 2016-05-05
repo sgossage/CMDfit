@@ -9,7 +9,8 @@ setup(name='cmdfit',
       license='IDK',
       packages=['cmdfit'],
       install_requires=[
-          'numpy'
+          'numpy',
+          'corner'
       ],
       zip_safe=False,
       test_suite='nose.collector',
