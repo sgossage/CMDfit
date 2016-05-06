@@ -269,7 +269,7 @@ class cmdset(object):
 
 
         for i in range(self.numbands):
-            l_indices_tocut = np.where(self.magnitudes.ix[:,i].values < lowerlim)[0]
+            #l_indices_tocut = np.where(self.magnitudes.ix[:,i].values < lowerlim)[0]
             u_indices_tocut = np.where(self.magnitudes.ix[:,i].values > upperlim)[0]
             
             if u_indices_tocut.size == 0:
@@ -277,13 +277,48 @@ class cmdset(object):
             else:
                 self.magnitudes = self.magnitudes.drop(self.magnitudes.index[u_indices_tocut])
                 self.uncertainties = self.uncertainties.drop(self.uncertainties.index[u_indices_tocut])
+                self.magnitudes = self.magnitudes.reset_index(drop=True)
+                self.uncertainties = self.uncertainties.reset_index(drop=True)
+
+            l_indices_tocut = np.where(self.magnitudes.ix[:,i].values < lowerlim)[0]
             
             if l_indices_tocut.size == 0:
                 pass
             else:
                 self.magnitudes = self.magnitudes.drop(self.magnitudes.index[l_indices_tocut])
                 self.uncertainties = self.uncertainties.drop(self.uncertainties.index[l_indices_tocut])
+                self.magnitudes = self.magnitudes.reset_index(drop=True)
+                self.uncertainties = self.uncertainties.reset_index(drop=True)
 
+        self.magnitudes = self.magnitudes.reset_index(drop=True)
+        self.uncertainties = self.uncertainties.reset_index(drop=True)
+
+        return
+
+    def cutuncert(self, lowerlim, upperlim):
+
+
+        for i in range(self.numbands):
+            #l_indices_tocut = np.where(self.uncertainties.ix[:,i].values < lowerlim)[0]
+            u_indices_tocut = np.where(self.uncertainties.ix[:,i].values > upperlim)[0]
+            
+            if u_indices_tocut.size == 0:
+                pass
+            else:
+                self.uncertainties = self.uncertainties.drop(self.uncertainties.index[u_indices_tocut])
+                self.magnitudes = self.magnitudes.drop(self.magnitudes.index[u_indices_tocut])
+                self.magnitudes = self.magnitudes.reset_index(drop=True)
+                self.uncertainties = self.uncertainties.reset_index(drop=True)
+
+            l_indices_tocut = np.where(self.magnitudes.ix[:,i].values < lowerlim)[0]
+            
+            if l_indices_tocut.size == 0:
+                pass
+            else:
+                self.uncertainties = self.uncertainties.drop(self.uncertainties.index[l_indices_tocut])
+                self.magnitudes = self.magnitudes.drop(self.magnitudes.index[l_indices_tocut])
+                self.magnitudes = self.magnitudes.reset_index(drop=True)
+                self.uncertainties = self.uncertainties.reset_index(drop=True)
 
         self.magnitudes = self.magnitudes.reset_index(drop=True)
         self.uncertainties = self.uncertainties.reset_index(drop=True)

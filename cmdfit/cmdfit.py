@@ -28,7 +28,7 @@ def fitall(mode = 'data', test_age = 9.0):
         # load an observed cmd:
         data_cmdset = data.cmdset('data')
         # Confine data's magnitude range to lie within isochrone's range for now...
-        data_cmdset.datacutmags(1, 4)
+        data_cmdset.datacutmags(4, 7)
         # Grab 3 random points:
         data_cmdset.randsamp(3)
 
@@ -80,7 +80,7 @@ def fitall(mode = 'data', test_age = 9.0):
     print()
 
     # Plot the isochrones corresponding to the MAP values:
-    plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, random_index = None)
+    plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, ndim, random_index = None)
 
     jkde = sns.jointplot(x='[Fe/H]', y='log10 Age', data=param_samples, kind='kde')
 
@@ -96,7 +96,8 @@ def fitsingle(mode, ndim = 3):
 
         # Confine data's magnitude range to a small range
         # near MSTO for now...
-        data_cmdset.datacutmags(1, 4)
+        data_cmdset.datacutmags(4, 7)
+        data_cmdset.cutuncert(0, 0.5)
 
         random_index = np.random.random_integers(len(data_cmdset.magnitudes.values)) 
 
@@ -185,7 +186,7 @@ def fitsingle(mode, ndim = 3):
     print()   
 
     # Plot the isochrones corresponding to the MAP values:
-    plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, random_index = random_index)
+    plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, ndim, random_index = random_index)
 
     if mode == 'modeltest':
         
@@ -208,7 +209,7 @@ def fitsingle(mode, ndim = 3):
 
     return param_samples, sampler
 
-def plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, random_index = None):
+def plot_foundisos(q, sortedFeH_list, data_cmdset, allmodel_cmdsets, ndim, random_index = None):
 
 
     # Right now this stuff tries to plot the star input with the MAP isochrone found.

@@ -115,7 +115,7 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
     elif mode == 'single':
         # emcee sampler parameters:
         nwalkers = 40
-        nsteps = 300
+        nsteps = 400
        
         #  [FeH, age, primary initial mass, secondary initial mass, and Pfield]
         if data_cmdset.kind == 'modeltest':
@@ -169,16 +169,16 @@ def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH
     for i in range(nwalkers):
          
         if ndim == 2:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn()]))        
+            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn()]))        
         elif ndim == 3:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn(), 
-                                                                np.random.randn()]))
+            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn(), 
+                                                                1e-1*np.random.randn()]))
         elif ndim == 4:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn(), 
-                                                                np.random.randn(), 1e-1*np.random.randn()]))
+            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn(), 
+                                                                1e-1*np.random.randn(), 1e-2*np.random.randn()]))
         elif ndim == 5:
-            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 5e-1*np.random.randn(), 
-                                                                np.random.randn(), 1e-1*np.random.randn(), np.random.randint(2)]))
+            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn(), 
+                                                                          1e-1*np.random.randn(), 1e-2*np.random.randn(), np.random.randint(2)]))
 
         if ndim >=2:
 
