@@ -33,8 +33,8 @@ class cmdset(object):
                 # masses of model stars and their ages as well:
                 extras_flag = True
             
+            # If readmode is none of the above, try it out as a filename, if it works, then use auto-mode:
             else:
-                print('Usage:\ncmdset(kind = ...), where \'...\' is either \'data\' if reading from a data file or\'model\' if reading from a model file.')
                 return
 
             # Arrays that will hold loaded data, uncertainties (if readmode = 'data'), 
@@ -51,7 +51,7 @@ class cmdset(object):
 
             # For model cmdsets, we may want to load a bunch of files, so this array will
             # keep track of the columns used so that the user does not have to re-enter them.
-            if readmode == 'model':
+            if readmode == 'model' or 'data':
                 if isinstance(usecol, type(None)):
                     self.usedcolumns = []
                     # Report magnitude correction and header info on first model:
@@ -87,12 +87,12 @@ class cmdset(object):
                                                                            returnNames=True, corrections='ABtoVega', silent=silent_flag)
                 
                 # Ask about supplying uncertainty values from the data table:
-                if readmode == 'data' or 'modeltest':
+                if readmode == 'data' or readmode == 'modeltest':
 
                     # For data files, ask about loading in uncertainties from the data table:
                     response = 'n'
-                    # Reading uncertainties is disabled at the moment.
-                    if readmode == 'data':
+                    # Reading uncertainties:
+                    if readmode == 'data' and usecol == None:
               
                         print('\nSELECT UNCERTAINTIES FOR {:s}.'.format(dataName))
                         # Ask if uncertainties should be loaded from the data file, or generated in some other way.
@@ -103,12 +103,20 @@ class cmdset(object):
 
                     # If the answer is no for loading uncertainties, just sluppy some nominal values.
                     # modeltest cmdsets will always have this value as their uncertainty.
-                    else:
+                    elif usecol == None or readmode == 'modeltest':
                         # In the future maybe give some options for users to select how they want to 
                         # generate uncertainties if the data doesn't supply them.
                         uncertCol = [0.05] * len(dataCol)
                         uncertName = dataName + 'err'
-                    
+                    # If we were given columns they must supply indices to uncertainties as well:
+                    elif usecol != None:
+                        usecol_index +=1
+                        if usecol_index >= len(self.usedcolumns):
+                            break
+                        usecol = self.usedcolumns[usecol_index]
+
+                        uncertCol, uncertName = cread.assign_data(data_file, mode=readmode, given_column = usecol, returnNames=True, silent=True)                        
+
                     # Store uncertainties in their own matrix:
                     uncertMatrix.append(uncertCol)
                     uncertNames.append(uncertName)
@@ -123,6 +131,7 @@ class cmdset(object):
                     self.FeH = eval(metadata[2])
                 
                 # Store magnitudes in the data matrix, for models these columns will follow age and mass columns:
+                print(usecol)
                 dataMatrix.append(dataCol)
                 dataNames.append(dataName)
                
@@ -419,10 +428,13 @@ def getcmdsetsmag(allmodel_cmdsets, age, initmass, FeH, FeH_list, data_bandindex
         return np.inf
 
                  
-def all_modelcmdsets(agecut = 0):
+def all_modelcmdsets(agecut = 0, usecol = None, default = False):
 
     # Go to a desired directory and get all of the .cmd files there:
-    selected_run_path = select_pathtofile('model')
+    if default:
+        selected_run_path = select_pathtofile('defaultmodel')
+    else:
+        selected_run_path = select_pathtofile('model')
 
     # Load all files in the selected directory:
     data_files = cread.getall_files(selected_run_path)
@@ -431,7 +443,7 @@ def all_modelcmdsets(agecut = 0):
         print("Found " + filename.split('/')[-1] + "...")
 
     model_cmdsets = []
-    usedcolumns = None
+    usedcolumns = usecol
     print()
     
     # Loop through model files and create a cmdset from each:
@@ -476,6 +488,17 @@ def select_pathtofile(mode):
         data_dir = os.path.join(root_dir, 'data')
         print('SELECT DESIRED DATA PATH:\n(Reading from {:s}.)'.format(data_dir))
         specific_data_dir = user.select_a_dir(data_dir,type_flag = 1)
+        return specific_data_dir
+
+    elif mode == 'defaultmodel':
+        model_dir = os.path.join(root_dir, 'model')
+        modeltype_dir = os.path.join(model_dir, 'MIST_v0.31')
+        modelrun_dir = os.path.join(modeltype_dir, 'HBlim005')
+        return modelrun_dir
+
+    elif mode == 'defaultdata':
+        data_dir = os.path.join(root_dir, 'data')
+        specific_data_dir = os.path.join(data_dir, 'Hyades')
         return specific_data_dir
 
     else:                                             

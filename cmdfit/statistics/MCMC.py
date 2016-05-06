@@ -76,7 +76,7 @@ def lnposterior(theta, data_cmdset, allmodel_cmdsets, FeH_list, FeH_range, age_r
     # on primary and secondary initial masses; it also handles the priors of those parameters:
     return lnp + lnlikelihood
 
-def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=None, ndim = 3):
+def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=None, ndim = 3, nwalkers=10, nsteps=300):
     
     #print('FORMING [Fe/H] RANGE...')
     # Determine the boundaries of the metallicity range:  
@@ -93,8 +93,8 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
     if mode == 'all':
         # emcee sampler parameters:
         ndim = 2
-        nwalkers = 10
-        nsteps = 150    
+        #nwalkers = 10
+        #nsteps = 150    
 
         #  [FeH, age]; preliminary values...just based on my understanding of what people believe currently
         # for the Hyades cluster:
@@ -114,8 +114,8 @@ def getsamples(data_cmdset, allmodel_cmdsets, FeH_list, mode = 'all', magindex=N
 
     elif mode == 'single':
         # emcee sampler parameters:
-        nwalkers = 40
-        nsteps = 400
+        #nwalkers = 40
+        #nsteps = 400
        
         #  [FeH, age, primary initial mass, secondary initial mass, and Pfield]
         if data_cmdset.kind == 'modeltest':
@@ -169,16 +169,16 @@ def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH
     for i in range(nwalkers):
          
         if ndim == 2:
-            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn()]))        
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 1e-1*np.random.randn()]))        
         elif ndim == 3:
-            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn(), 
-                                                                1e-1*np.random.randn()]))
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 1e-1*np.random.randn(), 
+                                                                np.random.randn()]))
         elif ndim == 4:
-            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn(), 
-                                                                1e-1*np.random.randn(), 1e-2*np.random.randn()]))
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 1e-1*np.random.randn(), 
+                                                                np.random.randn(), 1e-1*np.random.randn()]))
         elif ndim == 5:
-            initial_walker_positions.append(initial_positions + np.array([1e-2*np.random.randn(), 1e-2*np.random.randn(), 
-                                                                          1e-1*np.random.randn(), 1e-2*np.random.randn(), np.random.randint(2)]))
+            initial_walker_positions.append(initial_positions + np.array([1e-1*np.random.randn(), 1e-1*np.random.randn(), 
+                                                                          np.random.randn(), 1e-1*np.random.randn(), np.random.randint(2)]))
 
         if ndim >=2:
 
@@ -198,7 +198,7 @@ def make_walkerpos(nwalkers, ndim, initial_positions, age_range, mass_range, FeH
 
                 # need to make sure the walker doesnt get a mass outside of the valid range for
                 # that age, which cmdset from the allmodel_cmdset array we use is arbitrary:
-                walkeriso = iso.isochrone(cmdset, initial_walker_positions[i][1])
+                walkeriso = iso.isochrone(cmdset, initial_walker_positions[i][1], silent=True)
                 walkeriso_maxmass = max(walkeriso.initmasses.values)
                 walkeriso_minmass = min(walkeriso.initmasses.values)
 

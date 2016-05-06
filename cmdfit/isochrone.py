@@ -34,11 +34,11 @@ class isochrone(object):
          
         # Now we have an age to work with; so get all models within its block:
         isochrone_indexlist = np.where(age_array == age)[0]
-        self.magnitudes = cmdset.magnitudes.ix[isochrone_indexlist,:]
+        self.magnitudes = cmdset.magnitudes.ix[isochrone_indexlist,:].reset_index(drop=True)
         if cmdset.kind == 'modeltest':
-            self.uncertainties = cmdset.uncertainties.ix[isochrone_indexlist,:]
+            self.uncertainties = cmdset.uncertainties.ix[isochrone_indexlist,:].reset_index(drop=True)
 
-        self.initmasses = cmdset.initmasses.ix[isochrone_indexlist]
+        self.initmasses = cmdset.initmasses.ix[isochrone_indexlist].reset_index(drop=True)
         self.age = age
         self.FeH = cmdset.FeH
         self.kind = cmdset.kind

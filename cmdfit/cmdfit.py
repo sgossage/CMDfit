@@ -9,7 +9,7 @@ from cmdfit.statistics import MCMC
 from cmdfit.processing import interp
 from . import isochrone as iso
 
-def fitall(mode = 'data', test_age = 9.0):
+def fitall(mode = 'data', test_age = 9.0, nwalkers=10, nsteps=300, data_file = None, datausecol=None, modelusecol=None, default=False, test=False):
 
     """
     This function determines the likelihood of the data being produced by a
@@ -26,7 +26,7 @@ def fitall(mode = 'data', test_age = 9.0):
     """
     if mode == 'data':
         # load an observed cmd:
-        data_cmdset = data.cmdset('data')
+        data_cmdset = data.cmdset('data', data_file=data_file, usecol=datausecol)
         # Confine data's magnitude range to lie within isochrone's range for now...
         data_cmdset.datacutmags(4, 7)
         # Grab 3 random points:
@@ -35,10 +35,10 @@ def fitall(mode = 'data', test_age = 9.0):
     if mode == 'modeltest':
         data_cmdset = data.cmdset('modeltest')
         data_cmdset = iso.isochrone(data_cmdset, test_age)
-        data_cmdset.isorandsamp(3)
+        data_cmdset.isorandsamp(1)
     
     # Load a set of model cmds; the user will select which directory to load from:
-    allmodel_cmdsets = data.all_modelcmdsets()
+    allmodel_cmdsets = data.all_modelcmdsets(agecut=8.0, usecol=modelusecol, default=default)
     
     # Arranging cmds in ascending order according to metallicity; this is necesary
     # for the finding function in interp.py to work...
@@ -51,7 +51,10 @@ def fitall(mode = 'data', test_age = 9.0):
     ndim = 2
 
     # Run MCMC with the supplied models and observed data:
-    sampler, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode = 'all', ndim=ndim)
+    sampler, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, mode = 'all', ndim=ndim, nwalkers=nwalkers, nsteps=nsteps)
+
+    if test:
+        return sampler
 
     fig, (ax_feh, ax_age) = plt.subplots(2)
     ax_feh.set(ylabel='[Fe/H]')
@@ -88,11 +91,11 @@ def fitall(mode = 'data', test_age = 9.0):
 
     return param_samples, sampler
 
-def fitsingle(mode, ndim = 3):
+def fitsingle(mode, ndim = 3, nwalkers=10, nsteps=300, data_file = None, datausecol=None, modelusecol=None, default=False, test=False):
 
     if mode == 'data':
         # load an observed cmd:
-        data_cmdset = data.cmdset('data')
+        data_cmdset = data.cmdset('data', data_file=data_file, usecol=datausecol)
 
         # Confine data's magnitude range to a small range
         # near MSTO for now...
@@ -104,12 +107,12 @@ def fitsingle(mode, ndim = 3):
     if mode == 'modeltest':
         # For testing I will load a magnitude from the models; I know the age/mass, etc. for this star so I can check that
         # answers are correct...
-        data_cmdset = data.cmdset('modeltest')
+        data_cmdset = data.cmdset('modeltest', data_file=data_file, usecol=datausecol)
         random_index = 20450
 
     # Load a set of model cmds; the user will select which directory to load from
     # and cut models with ages below log 10 age = 8.0:
-    allmodel_cmdsets = data.all_modelcmdsets(agecut = 8.0)
+    allmodel_cmdsets = data.all_modelcmdsets(agecut = 8.0, usecol=modelusecol, default=default)
     print('\nMODELS LOADED...')
 
     # Arranging cmds in ascending order according to metallicity; this is necesary
@@ -125,10 +128,13 @@ def fitsingle(mode, ndim = 3):
     # Run MCMC with the supplied models and observed data (should make magindex selectable):
     if mode == 'modeltest':
         sampler, nwalkers, nsteps, model_params = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list,
-                                                                    mode='single', magindex= random_index,ndim= ndim)
+                                                                    mode='single', magindex= random_index,ndim= ndim, nwalkers=nwalkers, nsteps=nsteps)
     else:
         sampler, nwalkers, nsteps = MCMC.getsamples(data_cmdset, allmodel_cmdsets, sortedFeH_list, 
-                                                      mode='single', magindex= random_index,ndim= ndim)
+                                                      mode='single', magindex= random_index,ndim= ndim, nwalkers=nwalkers, nsteps=nsteps)
+
+    if test:
+        return sampler
 
     if ndim == 3:
         fig, (ax_feh, ax_age, ax_M1) = plt.subplots(ndim)

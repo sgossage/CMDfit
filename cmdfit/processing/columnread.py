@@ -158,7 +158,11 @@ def assign_data(cmd_datafile, mode = 'data', given_column = None, returncols = F
         hlist = get_header(cmd_datafile, mode)
         # get_header() skips the first 6 columns (b/c they are not magnitudes), so need to offset
         # the given column index by seven.
-        col1_name = hlist[col1 - modelfile_skippedcols]
+        if mode != 'data':
+            col1_name = hlist[col1 - modelfile_skippedcols]
+        else:
+            col1_name = hlist[col1]
+
         print('------------------------------------------------------------------------')
         print('ASSIGNING {:s}...'.format(col1_name) + 'for ' + cmd_datafile.split('/')[-1])    
 

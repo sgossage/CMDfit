@@ -225,8 +225,8 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
 
         # Here the primary and secondary mass are sampled:
         ndim = 1
-        nwalkers = 10
-        nsteps = 150
+        nwalkers = 4
+        nsteps = 4
   
         # Make an isochrone of the proposed age:
         if 8.0 < age < 10.0:
