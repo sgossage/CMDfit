@@ -30,12 +30,12 @@ def fitall(mode = 'data', test_age = 9.0, nwalkers=10, nsteps=300, data_file = N
         # Confine data's magnitude range to lie within isochrone's range for now...
         data_cmdset.datacutmags(4, 7)
         # Grab 3 random points:
-        data_cmdset.randsamp(3)
+        data_cmdset.randsamp(2)
 
     if mode == 'modeltest':
         data_cmdset = data.cmdset('modeltest')
         data_cmdset = iso.isochrone(data_cmdset, test_age)
-        data_cmdset.isorandsamp(1)
+        data_cmdset.isorandsamp(2)
     
     # Load a set of model cmds; the user will select which directory to load from:
     allmodel_cmdsets = data.all_modelcmdsets(agecut=8.0, usecol=modelusecol, default=default)

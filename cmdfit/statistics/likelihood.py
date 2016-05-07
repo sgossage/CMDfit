@@ -226,7 +226,7 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
         # Here the primary and secondary mass are sampled:
         ndim = 1
         nwalkers = 4
-        nsteps = 4
+        nsteps = 30
   
         # Make an isochrone of the proposed age:
         if 8.0 < age < 10.0:
@@ -271,7 +271,7 @@ def band_lnLikelihood(theta, band_magnitudes, band_uncertainties, bandindex, all
                                               args = (band_magnitudes[i], band_uncertainties[i], 
                                                 bandindex, allmodel_cmdsets, FeH_list, band_mag_range, FeH, age, mode))
             
-            print("RUNNING MCMC FOR STAR # {:d} OUT OF {:d} IN BAND {:d}...".format(i, len(band_magnitudes), bandindex))
+            #print("RUNNING MCMC FOR STAR # {:d} OUT OF {:d} IN BAND {:d}...".format(i, len(band_magnitudes), bandindex))
             sampler.run_mcmc(init_positions, nsteps)
             # Gather sampled probabilities and cut out the burn in period. I took a look and it seems to be around 100...
             lnprob = sampler.lnprobability[:,:]
