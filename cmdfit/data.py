@@ -504,6 +504,25 @@ def select_pathtofile(mode):
     else:                                             
         return "ERROR: Improper mode input for select_pathtofile(mode). Input should be either: mode = \'data\' or mode = \'model\'."
 
+# Returns the path to the default included data file, goldman_Hyades2MASS.txt:
+def getdefault_datafile():
 
-        
+    # root_dir path should lead to /cmdfit.
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+
+    data_dir = os.path.join(root_dir, 'data')
+    specific_data_dir = os.path.join(data_dir, 'Hyades')
+    return os.path.join(specific_data_dir, 'goldman_Hyades2MASS.txt')
+
+# Returns the path to the default included model file, MIST_v0.31_feh_p0.15_afe_p0.0_vvcrit0.4_03to8M_full.iso.cmd:
+def getdefault_modelfile():
+
+    # root_dir path should lead to /cmdfit.
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+
+    model_dir = os.path.join(root_dir, 'model')
+    modeltype_dir = os.path.join(model_dir, 'MIST_v0.31')
+    modelrun_dir = os.path.join(modeltype_dir, 'HBlim005')
+
+    return os.path.join(modelrun_dir, 'MIST_v0.31_feh_p0.15_afe_p0.0_vvcrit0.4_03to8M_HBlim005_full.iso.cmd')
         
